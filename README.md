@@ -1,4 +1,4 @@
-# 🏭 StackFlow-3차
+# 🏭 StockFlow-3차
 **매장–본사 통합 재고관리 플랫폼 (MES + Kubernetes + AI)**  
 
 📅 프로젝트 기간: 2026.04.13 ~ 진행 중  
