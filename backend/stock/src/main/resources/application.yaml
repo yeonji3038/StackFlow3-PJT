@@ -1,9 +1,0 @@
-spring:
-  datasource:
-    url: jdbc:postgresql://localhost:5432/stockflow
-    username: yeonji
-    password: stockflow2604
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
