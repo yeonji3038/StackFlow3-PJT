@@ -8,13 +8,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.stockflow.backend.global.docs.brand.BrandApiSpecification;
+
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/brands")
 @RequiredArgsConstructor
-public class BrandController {
+public class BrandController implements BrandApiSpecification{
 
     private final BrandService brandService;
 
