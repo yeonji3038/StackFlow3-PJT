@@ -34,14 +34,14 @@ public class SwaggerConfig {
                 .build();
     }
 
-//    @Bean
-//    public GroupedOpenApi stockApi() {
-//        return GroupedOpenApi.builder()
-//                .group("3. 재고")
-//                .pathsToMatch("/api/warehouse-stocks/**", "/api/store-stocks/**")
-//                .build();
-//    }
-//
+    @Bean
+    public GroupedOpenApi stockApi() {
+        return GroupedOpenApi.builder()
+                .group("3. 재고")
+                .pathsToMatch("/api/warehouses/*/stocks/**", "/api/stores/*/stocks/**")
+                .build();
+    }
+
     @Bean
     public GroupedOpenApi headquartersApi() {
         return GroupedOpenApi.builder()
