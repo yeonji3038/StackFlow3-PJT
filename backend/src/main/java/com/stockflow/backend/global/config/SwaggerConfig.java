@@ -21,7 +21,7 @@ public class SwaggerConfig {
     @Bean
     public GroupedOpenApi commonApi() {
         return GroupedOpenApi.builder()
-                .group("1. 공통 데이터")
+                .group("공통데이터")
                 .pathsToMatch("/api/brands/**", "/api/categories/**", "/api/seasons/**", "/api/stores/**")
                 .build();
     }
@@ -29,7 +29,7 @@ public class SwaggerConfig {
     @Bean
     public GroupedOpenApi productApi() {
         return GroupedOpenApi.builder()
-                .group("2. 상품")
+                .group("상품")
                 .pathsToMatch("/api/products/**")
                 .build();
     }
@@ -37,7 +37,7 @@ public class SwaggerConfig {
     @Bean
     public GroupedOpenApi stockApi() {
         return GroupedOpenApi.builder()
-                .group("3. 재고")
+                .group("재고")
                 .pathsToMatch("/api/warehouses/*/stocks/**", "/api/stores/*/stocks/**")
                 .build();
     }
@@ -45,8 +45,15 @@ public class SwaggerConfig {
     @Bean
     public GroupedOpenApi headquartersApi() {
         return GroupedOpenApi.builder()
-                .group("4. 본사 업무")
+                .group("본사업무")
                 .pathsToMatch("/api/warehouses/**", "/api/allocations/**")
+                .build();
+    }
+    @Bean
+    public GroupedOpenApi userApi() {
+        return GroupedOpenApi.builder()
+                .group("사용자인증")
+                .pathsToMatch("/api/users/**", "/api/auth/**")
                 .build();
     }
 
@@ -66,11 +73,5 @@ public class SwaggerConfig {
 //                .build();
 //    }
 //
-//    @Bean
-//    public GroupedOpenApi userApi() {
-//        return GroupedOpenApi.builder()
-//                .group("7. 사용자/인증")
-//                .pathsToMatch("/api/users/**", "/api/auth/**")
-//                .build();
-//    }
+
 }
