@@ -10,15 +10,15 @@ import com.stockflow.backend.domain.allocation.repository.AllocationRepository;
 import com.stockflow.backend.domain.product.entity.ProductOption;
 import com.stockflow.backend.domain.product.repository.ProductOptionRepository;
 import com.stockflow.backend.domain.store.entity.Store;
+import com.stockflow.backend.domain.store.entity.StoreStock;
 import com.stockflow.backend.domain.store.repository.StoreRepository;
+import com.stockflow.backend.domain.store.repository.StoreStockRepository;
 import com.stockflow.backend.domain.user.entity.User;
 import com.stockflow.backend.domain.user.repository.UserRepository;
 import com.stockflow.backend.domain.warehouse.entity.Warehouse;
 import com.stockflow.backend.domain.warehouse.entity.WarehouseStock;
 import com.stockflow.backend.domain.warehouse.repository.WarehouseRepository;
 import com.stockflow.backend.domain.warehouse.repository.WarehouseStockRepository;
-import com.stockflow.backend.domain.store.entity.StoreStock;
-import com.stockflow.backend.domain.store.repository.StoreStockRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -96,6 +96,12 @@ public class AllocationService {
     public AllocationResponseDto approve(Long id, Long approvedById) {
         Allocation allocation = allocationRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("배분을 찾을 수 없습니다."));
+
+        // 상태 체크 - REQUESTED 상태만 승인 가능
+        if (allocation.getStatus() != AllocationStatus.REQUESTED) {
+            throw new RuntimeException("요청 상태의 배분만 승인할 수 있습니다. 현재 상태: " + allocation.getStatus());
+        }
+
         User approvedBy = userRepository.findById(approvedById)
                 .orElseThrow(() -> new RuntimeException("승인자를 찾을 수 없습니다."));
 
@@ -109,6 +115,11 @@ public class AllocationService {
         Allocation allocation = allocationRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("배분을 찾을 수 없습니다."));
 
+        // 상태 체크 - APPROVED 상태만 출고 가능
+        if (allocation.getStatus() != AllocationStatus.APPROVED) {
+            throw new RuntimeException("승인된 배분만 출고할 수 있습니다. 현재 상태: " + allocation.getStatus());
+        }
+
         List<AllocationItem> items = allocationItemRepository.findByAllocationId(id);
 
         // 창고 재고 차감
@@ -118,6 +129,14 @@ public class AllocationService {
                             allocation.getWarehouse().getId(),
                             item.getProductOption().getId())
                     .orElseThrow(() -> new RuntimeException("창고 재고를 찾을 수 없습니다."));
+
+            // 재고 부족 체크
+            if (warehouseStock.getQuantity() < item.getQuantity()) {
+                throw new RuntimeException("창고 재고가 부족합니다. " +
+                        "상품 옵션 ID: " + item.getProductOption().getId() +
+                        ", 현재 재고: " + warehouseStock.getQuantity() +
+                        ", 요청 수량: " + item.getQuantity());
+            }
 
             warehouseStock.updateQuantity(warehouseStock.getQuantity() - item.getQuantity());
         }
@@ -131,6 +150,11 @@ public class AllocationService {
     public AllocationResponseDto receive(Long id) {
         Allocation allocation = allocationRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("배분을 찾을 수 없습니다."));
+
+        // 상태 체크 - SHIPPED 상태만 입고완료 가능
+        if (allocation.getStatus() != AllocationStatus.SHIPPED) {
+            throw new RuntimeException("출고된 배분만 입고완료 처리할 수 있습니다. 현재 상태: " + allocation.getStatus());
+        }
 
         List<AllocationItem> items = allocationItemRepository.findByAllocationId(id);
 
@@ -159,6 +183,15 @@ public class AllocationService {
     public AllocationResponseDto cancel(Long id) {
         Allocation allocation = allocationRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("배분을 찾을 수 없습니다."));
+
+        // 상태 체크 - RECEIVED 또는 이미 CANCELLED 상태는 취소 불가
+        if (allocation.getStatus() == AllocationStatus.RECEIVED) {
+            throw new RuntimeException("입고완료된 배분은 취소할 수 없습니다.");
+        }
+        if (allocation.getStatus() == AllocationStatus.CANCELLED) {
+            throw new RuntimeException("이미 취소된 배분입니다.");
+        }
+
         allocation.updateStatus(AllocationStatus.CANCELLED, allocation.getApprovedBy());
         return AllocationResponseDto.from(allocation, allocationItemRepository.findByAllocationId(id));
     }
