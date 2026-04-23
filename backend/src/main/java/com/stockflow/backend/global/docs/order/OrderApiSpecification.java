@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -47,7 +48,9 @@ public interface OrderApiSpecification {
         - **updatedAt** : 수정일시
         """)
     @PostMapping
-    ResponseEntity<OrderResponseDto> createOrder(@RequestBody @Valid OrderRequestDto request);
+    ResponseEntity<OrderResponseDto> createOrder(
+            @RequestBody @Valid OrderRequestDto request,
+            @AuthenticationPrincipal String email);
 
     @Operation(summary = "발주 전체 조회", description = """
         💡 전체 발주 목록을 조회합니다.
