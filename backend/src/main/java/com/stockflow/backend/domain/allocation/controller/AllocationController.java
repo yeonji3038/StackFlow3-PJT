@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 import java.util.List;
 
@@ -22,9 +23,10 @@ public class AllocationController implements AllocationApiSpecification {
     // 배분 요청
     @PostMapping
     public ResponseEntity<AllocationResponseDto> createAllocation(
-            @RequestBody @Valid AllocationRequestDto request) {
+            @RequestBody @Valid AllocationRequestDto request,
+            @AuthenticationPrincipal String email) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(allocationService.create(request));
+                .body(allocationService.create(request, email));
     }
 
     // 배분 전체 조회

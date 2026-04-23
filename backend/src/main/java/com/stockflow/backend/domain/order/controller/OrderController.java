@@ -9,7 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import java.util.List;
 
 @RestController
@@ -22,9 +22,10 @@ public class OrderController implements OrderApiSpecification {
     // 발주 요청
     @PostMapping
     public ResponseEntity<OrderResponseDto> createOrder(
-            @RequestBody @Valid OrderRequestDto request) {
+            @RequestBody @Valid OrderRequestDto request,
+            @AuthenticationPrincipal String email) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(orderService.create(request));
+                .body(orderService.create(request, email));
     }
 
     // 발주 전체 조회

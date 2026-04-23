@@ -13,9 +13,6 @@ public class OrderRequestDto {
     @NotNull(message = "매장 ID는 필수입니다.")
     private Long storeId;
 
-    @NotNull(message = "요청자 ID는 필수입니다.")
-    private Long requestedById;
-
     private String note;
 
     @NotNull(message = "발주 상세는 필수입니다.")

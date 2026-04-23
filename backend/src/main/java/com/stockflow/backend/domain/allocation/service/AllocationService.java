@@ -48,12 +48,14 @@ public class AllocationService {
 
     // 배분 요청
     @Transactional
-    public AllocationResponseDto create(AllocationRequestDto request) {
+    public AllocationResponseDto create(AllocationRequestDto request, String email) {
         Warehouse warehouse = warehouseRepository.findById(request.getWarehouseId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.WAREHOUSE_NOT_FOUND));
         Store store = storeRepository.findById(request.getStoreId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORE_NOT_FOUND));
-        User requestedBy = userRepository.findById(request.getRequestedById())
+
+        // JWT 토큰에서 추출한 이메일로 요청자 조회
+        User requestedBy = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         Allocation allocation = Allocation.builder()

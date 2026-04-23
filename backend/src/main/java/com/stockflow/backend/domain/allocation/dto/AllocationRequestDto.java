@@ -16,8 +16,6 @@ public class AllocationRequestDto {
     @NotNull(message = "매장 ID는 필수입니다.")
     private Long storeId;
 
-    @NotNull(message = "요청자 ID는 필수입니다.")
-    private Long requestedById;
 
     @NotNull(message = "배분 상세는 필수입니다.")
     private List<AllocationItemDto> items;

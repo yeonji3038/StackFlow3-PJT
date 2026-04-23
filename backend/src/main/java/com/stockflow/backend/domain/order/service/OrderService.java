@@ -45,10 +45,12 @@ public class OrderService {
 
     // 발주 요청
     @Transactional
-    public OrderResponseDto create(OrderRequestDto request) {
+    public OrderResponseDto create(OrderRequestDto request, String email) {
         Store store = storeRepository.findById(request.getStoreId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORE_NOT_FOUND));
-        User requestedBy = userRepository.findById(request.getRequestedById())
+
+        // JWT 토큰에서 추출한 이메일로 요청자 조회
+        User requestedBy = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         Order order = Order.builder()
