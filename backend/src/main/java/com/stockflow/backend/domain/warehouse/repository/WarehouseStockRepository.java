@@ -13,4 +13,7 @@ public interface WarehouseStockRepository extends JpaRepository<WarehouseStock, 
 
     // 특정 창고의 특정 상품 옵션 재고 조회
     Optional<WarehouseStock> findByWarehouseIdAndProductOptionId(Long warehouseId, Long productOptionId);
+
+    // 특정 상품 옵션의 창고 재고 전체 조회
+    List<WarehouseStock> findByProductOptionId(Long productOptionId);
 }

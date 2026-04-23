@@ -65,13 +65,13 @@ public class SwaggerConfig {
                 .build();
     }
 
-//    @Bean
-//    public GroupedOpenApi storeApi() {
-//        return GroupedOpenApi.builder()
-//                .group("5. 매장 업무")
-//                .pathsToMatch("/api/orders/**")
-//                .build();
-//    }
+    @Bean
+    public GroupedOpenApi storeApi() {
+        return GroupedOpenApi.builder()
+                .group("매장 업무")
+                .pathsToMatch("/api/orders/**")
+                .build();
+    }
 //
 //    @Bean
 //    public GroupedOpenApi historyApi() {
