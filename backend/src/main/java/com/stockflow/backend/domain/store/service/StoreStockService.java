@@ -8,6 +8,8 @@ import com.stockflow.backend.domain.store.entity.Store;
 import com.stockflow.backend.domain.store.entity.StoreStock;
 import com.stockflow.backend.domain.store.repository.StoreRepository;
 import com.stockflow.backend.domain.store.repository.StoreStockRepository;
+import com.stockflow.backend.global.exception.BusinessException;
+import com.stockflow.backend.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,9 +30,9 @@ public class StoreStockService {
     @Transactional
     public StoreStockResponseDto create(StoreStockRequestDto request) {
         Store store = storeRepository.findById(request.getStoreId())
-                .orElseThrow(() -> new RuntimeException("매장을 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.STORE_NOT_FOUND));
         ProductOption productOption = productOptionRepository.findById(request.getProductOptionId())
-                .orElseThrow(() -> new RuntimeException("상품 옵션을 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_OPTION_NOT_FOUND));
 
         StoreStock storeStock = StoreStock.builder()
                 .store(store)
@@ -51,7 +53,7 @@ public class StoreStockService {
     // 매장 재고 단건 조회
     public StoreStockResponseDto findById(Long id) {
         StoreStock storeStock = storeStockRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("매장 재고를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.STORE_STOCK_NOT_FOUND));
         return StoreStockResponseDto.from(storeStock);
     }
 
@@ -59,7 +61,7 @@ public class StoreStockService {
     @Transactional
     public StoreStockResponseDto update(Long id, StoreStockRequestDto request) {
         StoreStock storeStock = storeStockRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("매장 재고를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.STORE_STOCK_NOT_FOUND));
         storeStock.updateQuantity(request.getQuantity());
         return StoreStockResponseDto.from(storeStock);
     }
@@ -68,7 +70,7 @@ public class StoreStockService {
     @Transactional
     public void delete(Long id) {
         if (!storeStockRepository.existsById(id)) {
-            throw new RuntimeException("매장 재고를 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.STORE_STOCK_NOT_FOUND);
         }
         storeStockRepository.deleteById(id);
     }

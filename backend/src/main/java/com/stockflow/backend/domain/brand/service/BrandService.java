@@ -4,6 +4,8 @@ import com.stockflow.backend.domain.brand.dto.BrandRequestDto;
 import com.stockflow.backend.domain.brand.dto.BrandResponseDto;
 import com.stockflow.backend.domain.brand.entity.Brand;
 import com.stockflow.backend.domain.brand.repository.BrandRepository;
+import com.stockflow.backend.global.exception.BusinessException;
+import com.stockflow.backend.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,7 +40,7 @@ public class BrandService {
     // 단건 조회
     public BrandResponseDto findById(Long id) {
         Brand brand = brandRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("브랜드를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.BRAND_NOT_FOUND));
         return BrandResponseDto.from(brand);
     }
 
@@ -46,7 +48,7 @@ public class BrandService {
     @Transactional
     public BrandResponseDto update(Long id, BrandRequestDto request) {
         Brand brand = brandRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("브랜드를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.BRAND_NOT_FOUND));
         brand.update(request.getName(), request.getDescription());
         return BrandResponseDto.from(brand);
     }
@@ -55,7 +57,7 @@ public class BrandService {
     @Transactional
     public void delete(Long id) {
         if (!brandRepository.existsById(id)) {
-            throw new RuntimeException("브랜드를 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.BRAND_NOT_FOUND);
         }
         brandRepository.deleteById(id);
     }

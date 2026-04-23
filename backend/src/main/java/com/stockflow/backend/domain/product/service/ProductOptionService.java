@@ -6,6 +6,8 @@ import com.stockflow.backend.domain.product.entity.Product;
 import com.stockflow.backend.domain.product.entity.ProductOption;
 import com.stockflow.backend.domain.product.repository.ProductOptionRepository;
 import com.stockflow.backend.domain.product.repository.ProductRepository;
+import com.stockflow.backend.global.exception.BusinessException;
+import com.stockflow.backend.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,7 +27,7 @@ public class ProductOptionService {
     @Transactional
     public ProductOptionResponseDto create(Long productId, ProductOptionRequestDto request) {
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("상품을 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
 
         ProductOption productOption = ProductOption.builder()
                 .product(product)
@@ -48,7 +50,7 @@ public class ProductOptionService {
     // 옵션 단건 조회
     public ProductOptionResponseDto findById(Long id) {
         ProductOption productOption = productOptionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("상품 옵션을 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_OPTION_NOT_FOUND));
         return ProductOptionResponseDto.from(productOption);
     }
 
@@ -56,7 +58,7 @@ public class ProductOptionService {
     @Transactional
     public ProductOptionResponseDto update(Long id, ProductOptionRequestDto request) {
         ProductOption productOption = productOptionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("상품 옵션을 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_OPTION_NOT_FOUND));
         productOption.update(request.getColor(), request.getSize(),
                 request.getSkuCode(), request.getStatus());
         return ProductOptionResponseDto.from(productOption);
@@ -66,7 +68,7 @@ public class ProductOptionService {
     @Transactional
     public void delete(Long id) {
         if (!productOptionRepository.existsById(id)) {
-            throw new RuntimeException("상품 옵션을 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.PRODUCT_OPTION_NOT_FOUND);
         }
         productOptionRepository.deleteById(id);
     }
