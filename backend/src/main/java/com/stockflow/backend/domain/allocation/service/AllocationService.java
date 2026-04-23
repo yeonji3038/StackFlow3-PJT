@@ -9,6 +9,9 @@ import com.stockflow.backend.domain.allocation.repository.AllocationItemReposito
 import com.stockflow.backend.domain.allocation.repository.AllocationRepository;
 import com.stockflow.backend.domain.product.entity.ProductOption;
 import com.stockflow.backend.domain.product.repository.ProductOptionRepository;
+import com.stockflow.backend.domain.stockhistory.entity.StockHistoryReason;
+import com.stockflow.backend.domain.stockhistory.entity.StockHistoryType;
+import com.stockflow.backend.domain.stockhistory.service.StockHistoryService;
 import com.stockflow.backend.domain.store.entity.Store;
 import com.stockflow.backend.domain.store.entity.StoreStock;
 import com.stockflow.backend.domain.store.repository.StoreRepository;
@@ -39,6 +42,7 @@ public class AllocationService {
     private final ProductOptionRepository productOptionRepository;
     private final WarehouseStockRepository warehouseStockRepository;
     private final StoreStockRepository storeStockRepository;
+    private final StockHistoryService stockHistoryService;
 
     // 배분 요청
     @Transactional
@@ -139,6 +143,17 @@ public class AllocationService {
             }
 
             warehouseStock.updateQuantity(warehouseStock.getQuantity() - item.getQuantity());
+
+            // 창고 출고 이력 저장
+            stockHistoryService.record(
+                    null,
+                    allocation.getWarehouse(),
+                    item.getProductOption(),
+                    StockHistoryType.OUT,
+                    StockHistoryReason.ALLOCATION,
+                    item.getQuantity(),
+                    allocation.getApprovedBy()
+            );
         }
 
         allocation.updateStatus(AllocationStatus.SHIPPED, allocation.getApprovedBy());
@@ -172,6 +187,17 @@ public class AllocationService {
 
             storeStock.updateQuantity(storeStock.getQuantity() + item.getQuantity());
             storeStockRepository.save(storeStock);
+
+            // 매장 입고 이력 저장
+            stockHistoryService.record(
+                    allocation.getStore(),
+                    null,
+                    item.getProductOption(),
+                    StockHistoryType.IN,
+                    StockHistoryReason.ALLOCATION,
+                    item.getQuantity(),
+                    allocation.getApprovedBy()
+            );
         }
 
         allocation.updateStatus(AllocationStatus.RECEIVED, allocation.getApprovedBy());
