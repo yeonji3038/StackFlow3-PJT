@@ -9,6 +9,7 @@ import com.stockflow.backend.domain.order.repository.OrderItemRepository;
 import com.stockflow.backend.domain.order.repository.OrderRepository;
 import com.stockflow.backend.domain.product.entity.ProductOption;
 import com.stockflow.backend.domain.product.repository.ProductOptionRepository;
+import com.stockflow.backend.domain.stockhistory.service.StockHistoryService;
 import com.stockflow.backend.domain.store.entity.Store;
 import com.stockflow.backend.domain.store.entity.StoreStock;
 import com.stockflow.backend.domain.store.repository.StoreRepository;
@@ -20,6 +21,8 @@ import com.stockflow.backend.domain.warehouse.repository.WarehouseStockRepositor
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.stockflow.backend.domain.stockhistory.entity.StockHistoryType;
+import com.stockflow.backend.domain.stockhistory.entity.StockHistoryReason;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -36,6 +39,7 @@ public class OrderService {
     private final ProductOptionRepository productOptionRepository;
     private final WarehouseStockRepository warehouseStockRepository;
     private final StoreStockRepository storeStockRepository;
+    private final StockHistoryService stockHistoryService;
 
     // 발주 요청
     @Transactional
@@ -153,6 +157,17 @@ public class OrderService {
             }
 
             warehouseStock.updateQuantity(warehouseStock.getQuantity() - item.getQuantity());
+
+            // 창고 출고 이력 저장
+            stockHistoryService.record(
+                    null,
+                    warehouseStock.getWarehouse(),
+                    item.getProductOption(),
+                    StockHistoryType.OUT,
+                    StockHistoryReason.ORDER,
+                    item.getQuantity(),
+                    order.getApprovedBy()
+            );
         }
 
         order.updateStatus(OrderStatus.SHIPPED, order.getApprovedBy());
@@ -186,6 +201,23 @@ public class OrderService {
 
             storeStock.updateQuantity(storeStock.getQuantity() + item.getQuantity());
             storeStockRepository.save(storeStock);
+
+            storeStock.updateQuantity(storeStock.getQuantity() + item.getQuantity());
+            storeStockRepository.save(storeStock);
+
+            // 매장 입고 이력 저장
+            stockHistoryService.record(
+                    order.getStore(),
+                    null,
+                    item.getProductOption(),
+                    StockHistoryType.IN,
+                    StockHistoryReason.ORDER,
+                    item.getQuantity(),
+                    order.getApprovedBy()
+            );
+
+
+
         }
 
         order.updateStatus(OrderStatus.RECEIVED, order.getApprovedBy());

@@ -72,14 +72,14 @@ public class SwaggerConfig {
                 .pathsToMatch("/api/orders/**")
                 .build();
     }
-//
-//    @Bean
-//    public GroupedOpenApi historyApi() {
-//        return GroupedOpenApi.builder()
-//                .group("6. 이력")
-//                .pathsToMatch("/api/stock-history/**")
-//                .build();
-//    }
-//
+
+    @Bean
+    public GroupedOpenApi historyApi() {
+        return GroupedOpenApi.builder()
+                .group("이력")
+                .pathsToMatch("/api/stock-history/**")
+                .build();
+    }
+
 
 }
