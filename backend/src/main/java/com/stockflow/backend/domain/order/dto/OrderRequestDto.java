@@ -1,6 +1,7 @@
 package com.stockflow.backend.domain.order.dto;
 
 import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -8,6 +9,7 @@ import java.util.List;
 
 @Getter
 @NoArgsConstructor
+@AllArgsConstructor
 public class OrderRequestDto {
 
     @NotNull(message = "매장 ID는 필수입니다.")
@@ -20,6 +22,7 @@ public class OrderRequestDto {
 
     @Getter
     @NoArgsConstructor
+    @AllArgsConstructor
     public static class OrderItemDto {
 
         @NotNull(message = "상품 옵션 ID는 필수입니다.")
