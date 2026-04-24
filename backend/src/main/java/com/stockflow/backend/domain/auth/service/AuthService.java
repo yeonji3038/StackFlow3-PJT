@@ -63,6 +63,8 @@ public class AuthService {
                 .email(user.getEmail())
                 .name(user.getName())
                 .role(user.getRole())
+                .storeId(user.getStore() != null ? user.getStore().getId() : null)
+                .warehouseId(null)
                 .build();
     }
 
