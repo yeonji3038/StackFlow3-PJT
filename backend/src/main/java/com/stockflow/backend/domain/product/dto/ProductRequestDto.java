@@ -3,11 +3,13 @@ package com.stockflow.backend.domain.product.dto;
 import com.stockflow.backend.domain.product.entity.ProductStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor
+@AllArgsConstructor
 public class ProductRequestDto {
 
     @NotBlank(message = "상품명은 필수입니다.")

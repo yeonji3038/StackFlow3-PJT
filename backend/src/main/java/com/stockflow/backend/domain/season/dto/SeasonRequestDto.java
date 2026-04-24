@@ -4,6 +4,7 @@ import com.stockflow.backend.domain.season.entity.SeasonStatus;
 import com.stockflow.backend.domain.season.entity.SeasonType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -11,6 +12,7 @@ import java.time.LocalDate;
 
 @Getter
 @NoArgsConstructor
+@AllArgsConstructor
 public class SeasonRequestDto {
 
     @NotBlank(message = "시즌명은 필수입니다.")

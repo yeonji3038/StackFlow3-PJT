@@ -10,6 +10,8 @@ import com.stockflow.backend.domain.product.entity.Product;
 import com.stockflow.backend.domain.product.repository.ProductRepository;
 import com.stockflow.backend.domain.season.entity.Season;
 import com.stockflow.backend.domain.season.repository.SeasonRepository;
+import com.stockflow.backend.global.exception.BusinessException;
+import com.stockflow.backend.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,11 +33,11 @@ public class ProductService {
     @Transactional
     public ProductResponseDto create(ProductRequestDto request) {
         Brand brand = brandRepository.findById(request.getBrandId())
-                .orElseThrow(() -> new RuntimeException("브랜드를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.BRAND_NOT_FOUND));
         Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new RuntimeException("카테고리를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.CATEGORY_NOT_FOUND));
         Season season = seasonRepository.findById(request.getSeasonId())
-                .orElseThrow(() -> new RuntimeException("시즌을 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.SEASON_NOT_FOUND));
 
         Product product = Product.builder()
                 .name(request.getName())
@@ -61,7 +63,7 @@ public class ProductService {
     // 상품 단건 조회
     public ProductResponseDto findById(Long id) {
         Product product = productRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("상품을 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
         return ProductResponseDto.from(product);
     }
 
@@ -69,14 +71,14 @@ public class ProductService {
     @Transactional
     public ProductResponseDto update(Long id, ProductRequestDto request) {
         Product product = productRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("상품을 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
 
         Brand brand = brandRepository.findById(request.getBrandId())
-                .orElseThrow(() -> new RuntimeException("브랜드를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.BRAND_NOT_FOUND));
         Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new RuntimeException("카테고리를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.CATEGORY_NOT_FOUND));
         Season season = seasonRepository.findById(request.getSeasonId())
-                .orElseThrow(() -> new RuntimeException("시즌을 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.SEASON_NOT_FOUND));
 
         product.update(request.getName(), brand, category, season,
                 request.getPrice(), request.getCost(), request.getDescription(), request.getStatus());
@@ -88,7 +90,7 @@ public class ProductService {
     @Transactional
     public void delete(Long id) {
         if (!productRepository.existsById(id)) {
-            throw new RuntimeException("상품을 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
         }
         productRepository.deleteById(id);
     }

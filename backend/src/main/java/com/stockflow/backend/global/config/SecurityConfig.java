@@ -5,13 +5,14 @@ import com.stockflow.backend.global.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.http.HttpMethod;
+import org.springframework.web.cors.CorsConfiguration;
 
 @Configuration
 @EnableWebSecurity
@@ -23,6 +24,16 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                // CORS 설정
+                .cors(cors -> cors.configurationSource(request -> {
+                    CorsConfiguration config = new CorsConfiguration();
+                    config.addAllowedOriginPattern("*");
+                    config.addAllowedMethod("*");
+                    config.addAllowedHeader("*");
+                    config.setAllowCredentials(true);
+                    return config;
+                }))
+
                 // CSRF 비활성화
                 .csrf(csrf -> csrf.disable())
 
@@ -34,11 +45,24 @@ public class SecurityConfig {
                         // 인증 없이 접근 가능
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/docs", "/v3/api-docs/**", "/swagger-ui/**").permitAll()
+
+                        // 창고 재고 조회는 인증된 사람 모두 가능
+                        .requestMatchers(HttpMethod.GET, "/api/warehouses/*/stocks/**").authenticated()
+
                         // 본사 직원만 접근 가능
                         .requestMatchers("/api/allocations/**").hasRole("HQ_STAFF")
                         .requestMatchers("/api/warehouses/**").hasRole("HQ_STAFF")
-                        // 창고 재고 조회는 로그인한 사람 모두 가능 (위에서 막혔으니 추가)
-                        .requestMatchers(HttpMethod.GET, "/api/warehouses/*/stocks/**").authenticated()
+
+                        // 발주 승인/반려 → 본사만
+                        .requestMatchers(HttpMethod.PATCH, "/api/orders/*/approve").hasRole("HQ_STAFF")
+                        .requestMatchers(HttpMethod.PATCH, "/api/orders/*/reject").hasRole("HQ_STAFF")
+
+                        // 발주 출고 → 본사 또는 창고 담당자
+                        .requestMatchers(HttpMethod.PATCH, "/api/orders/*/ship").hasAnyRole("HQ_STAFF", "WAREHOUSE_STAFF")
+
+                        // 발주 입고완료 → 매장 관리자
+                        .requestMatchers(HttpMethod.PATCH, "/api/orders/*/receive").hasAnyRole("HQ_STAFF", "STORE_MANAGER")
+
                         // 나머지는 인증 필요
                         .anyRequest().authenticated()
                 )

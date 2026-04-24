@@ -4,6 +4,8 @@ import com.stockflow.backend.domain.season.dto.SeasonRequestDto;
 import com.stockflow.backend.domain.season.dto.SeasonResponseDto;
 import com.stockflow.backend.domain.season.entity.Season;
 import com.stockflow.backend.domain.season.repository.SeasonRepository;
+import com.stockflow.backend.global.exception.BusinessException;
+import com.stockflow.backend.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,7 +44,7 @@ public class SeasonService {
     // 시즌 단건 조회
     public SeasonResponseDto findById(Long id) {
         Season season = seasonRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("시즌을 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.SEASON_NOT_FOUND));
         return SeasonResponseDto.from(season);
     }
 
@@ -50,7 +52,7 @@ public class SeasonService {
     @Transactional
     public SeasonResponseDto update(Long id, SeasonRequestDto request) {
         Season season = seasonRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("시즌을 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.SEASON_NOT_FOUND));
         season.update(request.getName(), request.getType(), request.getYear(),
                 request.getStartDate(), request.getEndDate(), request.getStatus());
         return SeasonResponseDto.from(season);
@@ -60,7 +62,7 @@ public class SeasonService {
     @Transactional
     public void delete(Long id) {
         if (!seasonRepository.existsById(id)) {
-            throw new RuntimeException("시즌을 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.SEASON_NOT_FOUND);
         }
         seasonRepository.deleteById(id);
     }

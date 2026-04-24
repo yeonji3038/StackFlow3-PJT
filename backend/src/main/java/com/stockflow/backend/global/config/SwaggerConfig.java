@@ -65,21 +65,21 @@ public class SwaggerConfig {
                 .build();
     }
 
-//    @Bean
-//    public GroupedOpenApi storeApi() {
-//        return GroupedOpenApi.builder()
-//                .group("5. 매장 업무")
-//                .pathsToMatch("/api/orders/**")
-//                .build();
-//    }
-//
-//    @Bean
-//    public GroupedOpenApi historyApi() {
-//        return GroupedOpenApi.builder()
-//                .group("6. 이력")
-//                .pathsToMatch("/api/stock-history/**")
-//                .build();
-//    }
-//
+    @Bean
+    public GroupedOpenApi storeApi() {
+        return GroupedOpenApi.builder()
+                .group("매장 업무")
+                .pathsToMatch("/api/orders/**")
+                .build();
+    }
+
+    @Bean
+    public GroupedOpenApi historyApi() {
+        return GroupedOpenApi.builder()
+                .group("이력")
+                .pathsToMatch("/api/stock-history/**")
+                .build();
+    }
+
 
 }

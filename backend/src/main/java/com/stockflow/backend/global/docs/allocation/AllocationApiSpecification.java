@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 import java.util.List;
 
@@ -47,7 +48,9 @@ public interface AllocationApiSpecification {
         - **updatedAt** : 수정일시
         """)
     @PostMapping
-    ResponseEntity<AllocationResponseDto> createAllocation(@RequestBody @Valid AllocationRequestDto request);
+    ResponseEntity<AllocationResponseDto> createAllocation(
+            @RequestBody @Valid AllocationRequestDto request,
+            @AuthenticationPrincipal String email);
 
     @Operation(summary = "배분 전체 조회", description = """
         💡 전체 배분 목록을 조회합니다.
