@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Bar,
@@ -16,6 +16,7 @@ import StatCard from '../../components/ui/StatCard'
 import SectionCard from '../../components/ui/SectionCard'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
 import type { Allocation, Order, WarehouseStock, WarehouseSummary } from '../../types/models'
+import { useStockStore } from '../../stores/stockStore'
 
 const LOW_STOCK_MAX = 10
 
@@ -43,6 +44,8 @@ function lowStockBarColor(quantity: number, minQ: number, maxQ: number): string 
 
 export default function HQDashboard() {
   const navigate = useNavigate()
+  const dashboardRefreshTrigger = useStockStore((s) => s.dashboardRefreshTrigger)
+  const hasFetchedOnce = useRef(false)
   const [allocations, setAllocations] = useState<Allocation[]>([])
   const [lowStock, setLowStock] = useState<WarehouseStock[]>([])
   const [orders, setOrders] = useState<Order[]>([])
@@ -53,9 +56,12 @@ export default function HQDashboard() {
 
   useEffect(() => {
     let cancelled = false
+    const silent = hasFetchedOnce.current && dashboardRefreshTrigger > 0
     ;(async () => {
-      setLoading(true)
-      setError(null)
+      if (!silent) {
+        setLoading(true)
+        setError(null)
+      }
       try {
         const [allocRes, whRes] = await Promise.all([
           api.get<Allocation[]>('/api/allocations'),
@@ -96,16 +102,19 @@ export default function HQDashboard() {
             setOrderCount(null)
           }
         }
-      } catch (e) {
+      } catch {
         if (!cancelled) setError('데이터를 불러오지 못했습니다.')
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          if (!silent) setLoading(false)
+          hasFetchedOnce.current = true
+        }
       }
     })()
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [dashboardRefreshTrigger])
 
   const statusSummary = useMemo(() => {
     const map = new Map<string, number>()

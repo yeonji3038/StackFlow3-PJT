@@ -77,11 +77,27 @@ export function getWarehouseId(): number | null {
   return Number.isFinite(n) ? n : null
 }
 
+/** 로그인 시 저장한 이메일(승인 API용 본인 조회 등) */
+export function getUserEmail(): string | null {
+  const v = localStorage.getItem('userEmail')
+  return v != null && v !== '' ? v : null
+}
+
+/** 백엔드가 로그인 응답에 userId를 내려줄 때만 사용 */
+export function getUserId(): number | null {
+  const v = localStorage.getItem('userId')
+  if (v == null || v === '') return null
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+
 export function logout(): void {
   localStorage.removeItem('token')
   setRefreshToken(null)
   localStorage.removeItem('role')
   localStorage.removeItem('name')
+  localStorage.removeItem('userEmail')
+  localStorage.removeItem('userId')
   localStorage.removeItem('storeId')
   localStorage.removeItem('warehouseId')
 }

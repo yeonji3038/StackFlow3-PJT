@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { allocationStatusLabel } from '../lib/allocationLabels'
 import SectionCard from '../components/ui/SectionCard'
@@ -7,6 +7,8 @@ import TablePaginationBar from '../components/ui/TablePaginationBar'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { useTablePagination } from '../hooks/useTablePagination'
 import type { Allocation } from '../types/models'
+import { useStockStore } from '../stores/stockStore'
+import { getRole } from '../lib/auth'
 
 function toInputDate(d: Date): string {
   const yyyy = String(d.getFullYear())
@@ -31,7 +33,10 @@ function matchesStatusFilter(filter: string, rowStatus: string): boolean {
 }
 
 export default function AllocationsPage() {
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const allocationRefreshTrigger = useStockStore((s) => s.allocationRefreshTrigger)
+  const hasFetchedOnce = useRef(false)
   const [rows, setRows] = useState<Allocation[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -57,22 +62,28 @@ export default function AllocationsPage() {
 
   useEffect(() => {
     let cancelled = false
+    const silent = hasFetchedOnce.current && allocationRefreshTrigger > 0
     ;(async () => {
-      setLoading(true)
-      setError(null)
+      if (!silent) {
+        setLoading(true)
+        setError(null)
+      }
       try {
         const { data } = await api.get<Allocation[]>('/api/allocations')
         if (!cancelled) setRows(data ?? [])
       } catch {
         if (!cancelled) setError('배분 목록을 불러오지 못했습니다.')
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          if (!silent) setLoading(false)
+          hasFetchedOnce.current = true
+        }
       }
     })()
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [allocationRefreshTrigger])
 
   const filterOptions = useMemo(() => {
     const warehouses = new Map<number, string>()
@@ -132,11 +143,20 @@ export default function AllocationsPage() {
   }, [rows, q, status, warehouse, store, from, to])
 
   const allocPagination = useTablePagination(filtered)
+  const isHq = getRole() === 'HQ_STAFF'
 
   return (
     <div className="space-y-4">
-      <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-lg font-semibold text-slate-900">배분 관리</h1>
+        {isHq ? (
+          <Link
+            to="/allocations/new"
+            className="inline-flex h-9 items-center rounded-md bg-blue-600 px-3 text-sm font-medium text-white shadow hover:bg-blue-700"
+          >
+            배분 생성
+          </Link>
+        ) : null}
       </div>
 
       <SectionCard
@@ -272,7 +292,17 @@ export default function AllocationsPage() {
                       allocPagination.pageItems.map((a) => (
                         <tr
                           key={a.id}
-                          className="border-b border-slate-100 even:bg-slate-50/40 hover:bg-blue-50/50"
+                          tabIndex={0}
+                          role="link"
+                          aria-label={`배분 ${a.id} 상세로 이동`}
+                          onClick={() => navigate(`/allocations/${a.id}`)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              navigate(`/allocations/${a.id}`)
+                            }
+                          }}
+                          className="cursor-pointer border-b border-slate-100 even:bg-slate-50/40 hover:bg-blue-50/70 focus:bg-blue-50/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400"
                         >
                           <td className="px-3 py-2 font-mono text-xs text-slate-600">{a.id}</td>
                           <td className="px-3 py-2 text-slate-800">{a.warehouseName}</td>

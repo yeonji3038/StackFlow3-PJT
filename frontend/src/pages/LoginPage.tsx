@@ -42,6 +42,16 @@ export default function LoginPage() {
       }
       localStorage.setItem('role', response.data.role)
       localStorage.setItem('name', response.data.name)
+      if (response.data.email) {
+        localStorage.setItem('userEmail', String(response.data.email))
+      } else {
+        localStorage.removeItem('userEmail')
+      }
+      if (response.data.userId != null) {
+        localStorage.setItem('userId', String(response.data.userId))
+      } else {
+        localStorage.removeItem('userId')
+      }
       if (response.data.storeId != null) {
         localStorage.setItem('storeId', String(response.data.storeId))
       } else {

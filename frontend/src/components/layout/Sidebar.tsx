@@ -1,7 +1,8 @@
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
   Package,
+  PackagePlus,
   ShoppingCart,
   Warehouse,
   Store,
@@ -24,9 +25,13 @@ const nav = [
 
 export default function Sidebar() {
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const name = localStorage.getItem('name') ?? '사용자'
   const role = getRole()
   const isHq = role === 'HQ_STAFF'
+
+  const allocationsManageActive =
+    pathname === '/allocations' || /^\/allocations\/\d+$/.test(pathname)
 
   const handleLogout = () => {
     logout()
@@ -48,10 +53,30 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
-        {nav.map(({ to, label, icon: Icon }) => (
+        {nav.map(({ to, label, icon: Icon }) => {
+          const active = to === '/allocations' ? allocationsManageActive : undefined
+          return (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                [
+                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                  (active ?? isActive)
+                    ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200/80'
+                    : 'text-slate-600 hover:bg-white/80 hover:text-slate-900',
+                ].join(' ')
+              }
+            >
+              <Icon className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+              {label}
+            </NavLink>
+          )
+        })}
+
+        {isHq ? (
           <NavLink
-            key={to}
-            to={to}
+            to="/allocations/new"
             className={({ isActive }) =>
               [
                 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
@@ -61,10 +86,10 @@ export default function Sidebar() {
               ].join(' ')
             }
           >
-            <Icon className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
-            {label}
+            <PackagePlus className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+            배분 생성
           </NavLink>
-        ))}
+        ) : null}
 
         {isHq ? (
           <>

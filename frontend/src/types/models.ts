@@ -19,6 +19,9 @@ export interface Allocation {
   requestedByName: string
   approvedById: number | null
   approvedByName: string | null
+  /** 출고(ship) 처리한 창고 담당자 — 백엔드에서 채워 주면 표시 */
+  shippedById?: number | null
+  shippedByName?: string | null
   items: AllocationItem[]
   createdAt: string
   updatedAt: string
