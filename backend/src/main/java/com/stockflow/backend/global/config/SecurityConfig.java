@@ -45,6 +45,7 @@ public class SecurityConfig {
                         // 인증 없이 접근 가능
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/docs", "/v3/api-docs/**", "/swagger-ui/**").permitAll()
+                        .requestMatchers("/ws/**").permitAll()
 
                         // 창고 재고 조회는 인증된 사람 모두 가능
                         .requestMatchers(HttpMethod.GET, "/api/warehouses/*/stocks/**").authenticated()

@@ -10,6 +10,7 @@ import com.stockflow.backend.domain.warehouse.repository.WarehouseRepository;
 import com.stockflow.backend.domain.warehouse.repository.WarehouseStockRepository;
 import com.stockflow.backend.global.exception.BusinessException;
 import com.stockflow.backend.global.exception.ErrorCode;
+import com.stockflow.backend.global.websocket.StockWebSocketService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,9 @@ public class WarehouseStockService {
     private final WarehouseStockRepository warehouseStockRepository;
     private final WarehouseRepository warehouseRepository;
     private final ProductOptionRepository productOptionRepository;
+    private final StockWebSocketService stockWebSocketService;
+
+    private static final int LOW_STOCK_THRESHOLD = 10;
 
     // 창고 재고 등록
     @Transactional
@@ -40,7 +44,19 @@ public class WarehouseStockService {
                 .quantity(request.getQuantity())
                 .build();
 
-        return WarehouseStockResponseDto.from(warehouseStockRepository.save(warehouseStock));
+        WarehouseStock saved = warehouseStockRepository.save(warehouseStock);
+
+        // WebSocket: 저재고 감지 시 알림
+        if (saved.getQuantity() <= LOW_STOCK_THRESHOLD) {
+            stockWebSocketService.sendLowStockAlert(
+                    warehouse.getId(),
+                    warehouse.getName(),
+                    productOption.getSkuCode(),
+                    saved.getQuantity()
+            );
+        }
+
+        return WarehouseStockResponseDto.from(saved);
     }
 
     // 특정 창고 재고 전체 조회
@@ -62,7 +78,20 @@ public class WarehouseStockService {
     public WarehouseStockResponseDto update(Long id, WarehouseStockRequestDto request) {
         WarehouseStock warehouseStock = warehouseStockRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.WAREHOUSE_STOCK_NOT_FOUND));
+
         warehouseStock.updateQuantity(request.getQuantity());
+
+        // WebSocket: 저재고 감지 시 알림 + 대시보드 갱신
+        if (request.getQuantity() <= LOW_STOCK_THRESHOLD) {
+            stockWebSocketService.sendLowStockAlert(
+                    warehouseStock.getWarehouse().getId(),
+                    warehouseStock.getWarehouse().getName(),
+                    warehouseStock.getProductOption().getSkuCode(),
+                    request.getQuantity()
+            );
+            stockWebSocketService.sendDashboardUpdate();
+        }
+
         return WarehouseStockResponseDto.from(warehouseStock);
     }
 
