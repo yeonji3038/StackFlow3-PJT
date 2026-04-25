@@ -24,6 +24,7 @@ import com.stockflow.backend.domain.warehouse.repository.WarehouseRepository;
 import com.stockflow.backend.domain.warehouse.repository.WarehouseStockRepository;
 import com.stockflow.backend.global.exception.BusinessException;
 import com.stockflow.backend.global.exception.ErrorCode;
+import com.stockflow.backend.global.websocket.StockWebSocketService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +46,7 @@ public class AllocationService {
     private final WarehouseStockRepository warehouseStockRepository;
     private final StoreStockRepository storeStockRepository;
     private final StockHistoryService stockHistoryService;
+    private final StockWebSocketService stockWebSocketService;
 
     // 배분 요청
     @Transactional
@@ -54,7 +56,6 @@ public class AllocationService {
         Store store = storeRepository.findById(request.getStoreId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORE_NOT_FOUND));
 
-        // JWT 토큰에서 추출한 이메일로 요청자 조회
         User requestedBy = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
@@ -79,6 +80,10 @@ public class AllocationService {
 
             allocationItemRepository.save(item);
         }
+
+        // WebSocket: 배분 요청 알림 + 대시보드 갱신
+        stockWebSocketService.sendAllocationUpdate(saved.getId(), AllocationStatus.REQUESTED.name());
+        stockWebSocketService.sendDashboardUpdate();
 
         return AllocationResponseDto.from(saved, allocationItemRepository.findByAllocationId(saved.getId()));
     }
@@ -112,6 +117,11 @@ public class AllocationService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         allocation.updateStatus(AllocationStatus.APPROVED, approvedBy);
+
+        // WebSocket: 승인 알림 + 대시보드 갱신
+        stockWebSocketService.sendAllocationUpdate(id, AllocationStatus.APPROVED.name());
+        stockWebSocketService.sendDashboardUpdate();
+
         return AllocationResponseDto.from(allocation, allocationItemRepository.findByAllocationId(id));
     }
 
@@ -138,7 +148,18 @@ public class AllocationService {
                 throw new BusinessException(ErrorCode.WAREHOUSE_STOCK_INSUFFICIENT);
             }
 
-            warehouseStock.updateQuantity(warehouseStock.getQuantity() - item.getQuantity());
+            int updatedQty = warehouseStock.getQuantity() - item.getQuantity();
+            warehouseStock.updateQuantity(updatedQty);
+
+            // WebSocket: 저재고 감지 시 알림
+            if (updatedQty <= 10) {
+                stockWebSocketService.sendLowStockAlert(
+                        allocation.getWarehouse().getId(),
+                        allocation.getWarehouse().getName(),
+                        item.getProductOption().getSkuCode(),
+                        updatedQty
+                );
+            }
 
             stockHistoryService.record(
                     null,
@@ -152,6 +173,11 @@ public class AllocationService {
         }
 
         allocation.updateStatus(AllocationStatus.SHIPPED, allocation.getApprovedBy());
+
+        // WebSocket: 출고 알림 + 대시보드 갱신
+        stockWebSocketService.sendAllocationUpdate(id, AllocationStatus.SHIPPED.name());
+        stockWebSocketService.sendDashboardUpdate();
+
         return AllocationResponseDto.from(allocation, items);
     }
 
@@ -193,6 +219,11 @@ public class AllocationService {
         }
 
         allocation.updateStatus(AllocationStatus.RECEIVED, allocation.getApprovedBy());
+
+        // WebSocket: 입고완료 알림 + 대시보드 갱신
+        stockWebSocketService.sendAllocationUpdate(id, AllocationStatus.RECEIVED.name());
+        stockWebSocketService.sendDashboardUpdate();
+
         return AllocationResponseDto.from(allocation, items);
     }
 
@@ -210,6 +241,11 @@ public class AllocationService {
         }
 
         allocation.updateStatus(AllocationStatus.CANCELLED, allocation.getApprovedBy());
+
+        // WebSocket: 취소 알림 + 대시보드 갱신
+        stockWebSocketService.sendAllocationUpdate(id, AllocationStatus.CANCELLED.name());
+        stockWebSocketService.sendDashboardUpdate();
+
         return AllocationResponseDto.from(allocation, allocationItemRepository.findByAllocationId(id));
     }
 }
