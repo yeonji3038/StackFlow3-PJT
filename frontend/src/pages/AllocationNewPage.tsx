@@ -7,6 +7,150 @@ import type { Allocation, StoreSummary, WarehouseStock, WarehouseSummary } from 
 
 type AddedLine = { productOptionId: number; quantity: number }
 
+type ItemFilters = {
+  productName: string
+  productCode: string
+  brand: string
+  category: string
+  season: string
+  color: string
+  size: string
+}
+
+const emptyItemFilters: ItemFilters = {
+  productName: '',
+  productCode: '',
+  brand: '',
+  category: '',
+  season: '',
+  color: '',
+  size: '',
+}
+
+function strNorm(v: unknown): string {
+  if (v == null) return ''
+  return String(v).trim()
+}
+
+function displayProductCode(s: WarehouseStock): string {
+  return strNorm(s.productCode) || strNorm(s.skuCode)
+}
+
+function normalizeWarehouseStock(row: WarehouseStock): WarehouseStock {
+  const r = row as WarehouseStock & Record<string, unknown>
+  return {
+    ...row,
+    productCode: strNorm(row.productCode) || strNorm(r.product_code) || undefined,
+    brand: strNorm(row.brand) || strNorm(r.brand_name) || undefined,
+    category:
+      strNorm(row.category) ||
+      strNorm(r.product_category) ||
+      strNorm(r.category_name) ||
+      undefined,
+    season: strNorm(row.season) || strNorm(r.product_season) || undefined,
+  }
+}
+
+function matchesItemQuery(s: WarehouseStock, query: string): boolean {
+  const q = query.trim().toLowerCase()
+  if (!q) return true
+  const name = strNorm(s.productName).toLowerCase()
+  const code = displayProductCode(s).toLowerCase()
+  const sku = strNorm(s.skuCode).toLowerCase()
+  return name.includes(q) || code.includes(q) || sku.includes(q)
+}
+
+type OmitFilterKey = keyof ItemFilters | 'none'
+
+function stockMatchesFilters(s: WarehouseStock, f: ItemFilters, omit: OmitFilterKey): boolean {
+  if (omit !== 'productName' && f.productName && s.productName !== f.productName) return false
+  if (omit !== 'productCode' && f.productCode && displayProductCode(s) !== f.productCode) return false
+  if (omit !== 'brand' && f.brand && strNorm(s.brand) !== f.brand) return false
+  if (omit !== 'category' && f.category && strNorm(s.category) !== f.category) return false
+  if (omit !== 'season' && f.season && strNorm(s.season) !== f.season) return false
+  if (omit !== 'color' && f.color && s.color !== f.color) return false
+  if (omit !== 'size' && f.size && s.size !== f.size) return false
+  return true
+}
+
+function filterPickPool(
+  stocks: WarehouseStock[],
+  query: string,
+  f: ItemFilters,
+  omit: OmitFilterKey,
+): WarehouseStock[] {
+  return stocks.filter(
+    (s) => matchesItemQuery(s, query) && stockMatchesFilters(s, f, omit),
+  )
+}
+
+function uniqueSortedStrings(values: string[]): string[] {
+  const u = new Set(values.filter((v) => strNorm(v)))
+  return [...u].sort((a, b) => a.localeCompare(b, 'ko-KR'))
+}
+
+function valueForFilterKey(s: WarehouseStock, key: keyof ItemFilters): string {
+  switch (key) {
+    case 'productName':
+      return s.productName
+    case 'productCode':
+      return displayProductCode(s)
+    case 'brand':
+      return strNorm(s.brand)
+    case 'category':
+      return strNorm(s.category)
+    case 'season':
+      return strNorm(s.season)
+    case 'color':
+      return s.color
+    case 'size':
+      return s.size
+    default:
+      return ''
+  }
+}
+
+/** 창고·검색어가 바뀔 때, 남아 있는 드롭다운 값이 더 이상 후보에 없으면 비움 */
+function sanitizeItemFilters(
+  prev: ItemFilters,
+  stocks: WarehouseStock[],
+  query: string,
+): ItemFilters {
+  let n = { ...prev }
+  for (let iter = 0; iter < 8; iter++) {
+    let changed = false
+    const keys: (keyof ItemFilters)[] = [
+      'productName',
+      'productCode',
+      'brand',
+      'category',
+      'season',
+      'color',
+      'size',
+    ]
+    for (const key of keys) {
+      const opts = uniqueSortedStrings(
+        filterPickPool(stocks, query, n, key).map((s) => valueForFilterKey(s, key)),
+      )
+      const v = n[key]
+      if (v && !opts.includes(v)) {
+        n = { ...n, [key]: '' }
+        changed = true
+      }
+    }
+    if (!changed) break
+  }
+  const same =
+    prev.productName === n.productName &&
+    prev.productCode === n.productCode &&
+    prev.brand === n.brand &&
+    prev.category === n.category &&
+    prev.season === n.season &&
+    prev.color === n.color &&
+    prev.size === n.size
+  return same ? prev : n
+}
+
 function sortByNameKo<T extends { name?: string }>(list: T[]): T[] {
   return [...list].sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '', 'ko-KR'))
 }
@@ -18,7 +162,11 @@ function storeOptionLabel(s: StoreSummary): string {
 }
 
 function stockOptionLabel(s: WarehouseStock): string {
-  return `${s.skuCode} - ${s.productName} - ${s.color} - ${s.size} (재고: ${s.quantity}개)`
+  const meta = [strNorm(s.brand), strNorm(s.category), strNorm(s.season)]
+    .filter(Boolean)
+    .join(' · ')
+  const base = `${s.skuCode} - ${s.productName} - ${s.color} - ${s.size} (재고: ${s.quantity}개)`
+  return meta ? `${base} · ${meta}` : base
 }
 
 function clampIntQty(q: number, max: number): number {
@@ -41,9 +189,7 @@ export default function AllocationNewPage() {
   const [warehouseStocks, setWarehouseStocks] = useState<WarehouseStock[]>([])
   const [stocksLoading, setStocksLoading] = useState(false)
   const [itemQuery, setItemQuery] = useState('')
-  const [filterProduct, setFilterProduct] = useState('')
-  const [filterColor, setFilterColor] = useState('')
-  const [filterSize, setFilterSize] = useState('')
+  const [itemFilters, setItemFilters] = useState<ItemFilters>(emptyItemFilters)
   const [pendingPick, setPendingPick] = useState<WarehouseStock | null>(null)
   const [pendingQty, setPendingQty] = useState(1)
   const [addedItems, setAddedItems] = useState<AddedLine[]>([])
@@ -98,9 +244,7 @@ export default function AllocationNewPage() {
 
   useEffect(() => {
     setItemQuery('')
-    setFilterProduct('')
-    setFilterColor('')
-    setFilterSize('')
+    setItemFilters(emptyItemFilters)
     setPendingPick(null)
     setPendingQty(1)
     setAddedItems([])
@@ -118,7 +262,7 @@ export default function AllocationNewPage() {
     void api
       .get<WarehouseStock[]>(`/api/warehouses/${wid}/stocks`)
       .then(({ data }) => {
-        if (!cancelled) setWarehouseStocks(data ?? [])
+        if (!cancelled) setWarehouseStocks((data ?? []).map(normalizeWarehouseStock))
       })
       .catch(() => {
         if (!cancelled) setWarehouseStocks([])
@@ -146,59 +290,74 @@ export default function AllocationNewPage() {
     [selectableStocks, addedOptionIds],
   )
 
-  const uniqueProductNames = useMemo(() => {
-    const u = new Set<string>()
-    for (const s of basePickStocks) u.add(s.productName)
-    return [...u].sort((a, b) => a.localeCompare(b, 'ko-KR'))
-  }, [basePickStocks])
+  const optionsProductNames = useMemo(
+    () =>
+      uniqueSortedStrings(
+        filterPickPool(basePickStocks, itemQuery, itemFilters, 'productName').map((s) => s.productName),
+      ),
+    [basePickStocks, itemQuery, itemFilters],
+  )
 
-  const colorsForProduct = useMemo(() => {
-    if (!filterProduct) return []
-    const u = new Set<string>()
-    for (const s of basePickStocks) {
-      if (s.productName === filterProduct) u.add(s.color)
-    }
-    return [...u].sort((a, b) => a.localeCompare(b, 'ko-KR'))
-  }, [basePickStocks, filterProduct])
+  const optionsProductCodes = useMemo(
+    () =>
+      uniqueSortedStrings(
+        filterPickPool(basePickStocks, itemQuery, itemFilters, 'productCode').map((s) => displayProductCode(s)),
+      ),
+    [basePickStocks, itemQuery, itemFilters],
+  )
 
-  const sizesForProductColor = useMemo(() => {
-    if (!filterProduct || !filterColor) return []
-    const u = new Set<string>()
-    for (const s of basePickStocks) {
-      if (s.productName === filterProduct && s.color === filterColor) u.add(s.size)
-    }
-    return [...u].sort((a, b) => a.localeCompare(b, 'ko-KR'))
-  }, [basePickStocks, filterProduct, filterColor])
+  const optionsBrands = useMemo(
+    () =>
+      uniqueSortedStrings(
+        filterPickPool(basePickStocks, itemQuery, itemFilters, 'brand').map((s) => strNorm(s.brand)),
+      ),
+    [basePickStocks, itemQuery, itemFilters],
+  )
 
-  const filteredPickList = useMemo(() => {
-    const q = itemQuery.trim().toLowerCase()
-    return basePickStocks.filter((s) => {
-      if (q) {
-        const sku = (s.skuCode ?? '').toLowerCase()
-        const name = (s.productName ?? '').toLowerCase()
-        if (!sku.includes(q) && !name.includes(q)) return false
-      }
-      if (filterProduct && s.productName !== filterProduct) return false
-      if (filterColor && s.color !== filterColor) return false
-      if (filterSize && s.size !== filterSize) return false
-      return true
-    })
-  }, [basePickStocks, itemQuery, filterProduct, filterColor, filterSize])
+  const optionsCategories = useMemo(
+    () =>
+      uniqueSortedStrings(
+        filterPickPool(basePickStocks, itemQuery, itemFilters, 'category').map((s) => strNorm(s.category)),
+      ),
+    [basePickStocks, itemQuery, itemFilters],
+  )
+
+  const optionsSeasons = useMemo(
+    () =>
+      uniqueSortedStrings(
+        filterPickPool(basePickStocks, itemQuery, itemFilters, 'season').map((s) => strNorm(s.season)),
+      ),
+    [basePickStocks, itemQuery, itemFilters],
+  )
+
+  const optionsColors = useMemo(
+    () =>
+      uniqueSortedStrings(
+        filterPickPool(basePickStocks, itemQuery, itemFilters, 'color').map((s) => s.color),
+      ),
+    [basePickStocks, itemQuery, itemFilters],
+  )
+
+  const optionsSizes = useMemo(
+    () =>
+      uniqueSortedStrings(
+        filterPickPool(basePickStocks, itemQuery, itemFilters, 'size').map((s) => s.size),
+      ),
+    [basePickStocks, itemQuery, itemFilters],
+  )
+
+  const filteredPickList = useMemo(
+    () => filterPickPool(basePickStocks, itemQuery, itemFilters, 'none'),
+    [basePickStocks, itemQuery, itemFilters],
+  )
+
+  useEffect(() => {
+    setItemFilters((prev) => sanitizeItemFilters(prev, basePickStocks, itemQuery))
+  }, [basePickStocks, itemQuery, itemFilters])
 
   const handleWarehouseChange = (value: string) => {
     setWarehouseId(value)
     setError(null)
-  }
-
-  const setFilterProductAndCascade = (name: string) => {
-    setFilterProduct(name)
-    setFilterColor('')
-    setFilterSize('')
-  }
-
-  const setFilterColorAndCascade = (color: string) => {
-    setFilterColor(color)
-    setFilterSize('')
   }
 
   const pickStock = (s: WarehouseStock) => {
@@ -442,26 +601,31 @@ export default function AllocationNewPage() {
             {warehouseId && !stocksLoading && selectableStocks.length > 0 ? (
               <div className="space-y-4 rounded-lg border border-slate-100 bg-slate-50/40 p-4">
                 <label className="block text-xs font-medium text-slate-700">
-                  검색 (SKU · 상품명)
+                  검색 (상품명 · 제품 코드 / SKU)
                   <input
                     type="search"
                     value={itemQuery}
                     onChange={(e) => setItemQuery(e.target.value)}
-                    placeholder="입력 시 아래 목록이 필터됩니다"
+                    placeholder="상품명 또는 코드로 실시간 검색"
                     className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                 </label>
+                <p className="text-[11px] text-slate-500">
+                  아래 드롭다운은 서로 조합되어 목록을 좁힙니다. API에 브랜드·카테고리·시즌이 없으면 항목이 비어 있을 수 있습니다.
+                </p>
 
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   <label className="block text-xs font-medium text-slate-700">
                     상품명
                     <select
-                      value={filterProduct}
-                      onChange={(e) => setFilterProductAndCascade(e.target.value)}
+                      value={itemFilters.productName}
+                      onChange={(e) =>
+                        setItemFilters((p) => ({ ...p, productName: e.target.value }))
+                      }
                       className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-white px-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
                       <option value="">전체</option>
-                      {uniqueProductNames.map((name) => (
+                      {optionsProductNames.map((name) => (
                         <option key={name} value={name}>
                           {name}
                         </option>
@@ -469,15 +633,78 @@ export default function AllocationNewPage() {
                     </select>
                   </label>
                   <label className="block text-xs font-medium text-slate-700">
+                    제품 코드
+                    <select
+                      value={itemFilters.productCode}
+                      onChange={(e) =>
+                        setItemFilters((p) => ({ ...p, productCode: e.target.value }))
+                      }
+                      className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-white px-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="">전체</option>
+                      {optionsProductCodes.map((code) => (
+                        <option key={code} value={code}>
+                          {code}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block text-xs font-medium text-slate-700">
+                    브랜드
+                    <select
+                      value={itemFilters.brand}
+                      onChange={(e) => setItemFilters((p) => ({ ...p, brand: e.target.value }))}
+                      className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-white px-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="">전체</option>
+                      {optionsBrands.map((b) => (
+                        <option key={b} value={b}>
+                          {b}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block text-xs font-medium text-slate-700">
+                    카테고리
+                    <select
+                      value={itemFilters.category}
+                      onChange={(e) =>
+                        setItemFilters((p) => ({ ...p, category: e.target.value }))
+                      }
+                      className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-white px-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="">전체</option>
+                      {optionsCategories.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block text-xs font-medium text-slate-700">
+                    시즌
+                    <select
+                      value={itemFilters.season}
+                      onChange={(e) => setItemFilters((p) => ({ ...p, season: e.target.value }))}
+                      className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-white px-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="">전체</option>
+                      {optionsSeasons.map((z) => (
+                        <option key={z} value={z}>
+                          {z}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block text-xs font-medium text-slate-700">
                     색상
                     <select
-                      value={filterColor}
-                      disabled={!filterProduct}
-                      onChange={(e) => setFilterColorAndCascade(e.target.value)}
-                      className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-white px-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                      value={itemFilters.color}
+                      onChange={(e) => setItemFilters((p) => ({ ...p, color: e.target.value }))}
+                      className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-white px-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
-                      <option value="">{filterProduct ? '전체' : '상품명을 먼저 선택'}</option>
-                      {colorsForProduct.map((c) => (
+                      <option value="">전체</option>
+                      {optionsColors.map((c) => (
                         <option key={c} value={c}>
                           {c}
                         </option>
@@ -487,15 +714,12 @@ export default function AllocationNewPage() {
                   <label className="block text-xs font-medium text-slate-700">
                     사이즈
                     <select
-                      value={filterSize}
-                      disabled={!filterProduct || !filterColor}
-                      onChange={(e) => setFilterSize(e.target.value)}
-                      className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-white px-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                      value={itemFilters.size}
+                      onChange={(e) => setItemFilters((p) => ({ ...p, size: e.target.value }))}
+                      className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-white px-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
-                      <option value="">
-                        {filterProduct && filterColor ? '전체' : '상품명·색상을 먼저 선택'}
-                      </option>
-                      {sizesForProductColor.map((z) => (
+                      <option value="">전체</option>
+                      {optionsSizes.map((z) => (
                         <option key={z} value={z}>
                           {z}
                         </option>

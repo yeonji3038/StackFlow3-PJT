@@ -9,6 +9,8 @@ import AllocationsPage from './pages/AllocationsPage'
 import AllocationDetailPage from './pages/AllocationDetailPage'
 import AllocationNewPage from './pages/AllocationNewPage'
 import OrdersPage from './pages/OrdersPage'
+import OrderDetailPage from './pages/OrderDetailPage'
+import OrderNewPage from './pages/OrderNewPage'
 import WarehouseStockPage from './pages/WarehouseStockPage'
 import StoreStockPage from './pages/StoreStockPage'
 import MovementsPage from './pages/MovementsPage'
@@ -30,6 +32,8 @@ function App() {
           <Route path="/allocations/new" element={<AllocationNewPage />} />
           <Route path="/allocations/:id" element={<AllocationDetailPage />} />
           <Route path="/orders" element={<OrdersPage />} />
+          <Route path="/orders/new" element={<OrderNewPage />} />
+          <Route path="/orders/:id" element={<OrderDetailPage />} />
           <Route path="/warehouse-stock" element={<WarehouseStockPage />} />
           <Route path="/store-stock" element={<StoreStockPage />} />
           <Route path="/movements" element={<MovementsPage />} />

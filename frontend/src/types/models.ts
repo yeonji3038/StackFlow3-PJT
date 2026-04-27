@@ -37,6 +37,11 @@ export interface WarehouseStock {
   color: string
   size: string
   quantity: number
+  /** 제품 코드(SKU와 별도일 때). 없으면 필터·표시는 skuCode 사용 */
+  productCode?: string | null
+  brand?: string | null
+  category?: string | null
+  season?: string | null
 }
 
 export interface StoreStock {
