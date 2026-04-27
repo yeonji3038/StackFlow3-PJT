@@ -156,7 +156,6 @@ export default function AllocationDetailPage() {
   const myStoreId = getStoreId()
   const myWarehouseId = getWarehouseId()
 
-  const showHqCreateAllocation = isHq
   const showHqApproveReject = isHq && st === 'REQUESTED'
   const showWarehouseShip =
     isWarehouse &&
@@ -286,20 +285,6 @@ export default function AllocationDetailPage() {
           </div>
         </dl>
       </section>
-
-      {showHqCreateAllocation && (
-        <SectionCard title="배분 생성">
-          <p className="mb-3 text-sm text-slate-600">
-            창고에서 매장으로 보낼 신규 배분을 등록합니다.
-          </p>
-          <Link
-            to="/allocations/new"
-            className="inline-flex rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-blue-700"
-          >
-            배분 생성하기
-          </Link>
-        </SectionCard>
-      )}
 
       {showHqApproveReject && (
         <SectionCard title="처리">
