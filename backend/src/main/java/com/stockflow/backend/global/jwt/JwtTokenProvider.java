@@ -27,10 +27,12 @@ public class JwtTokenProvider {
     }
 
     // 액세스 토큰 생성
-    public String generateAccessToken(String email, String role) {
+    public String generateAccessToken(String email, String role, Long storeId, Long warehouseId) {
         return Jwts.builder()
                 .setSubject(email)
                 .claim("role", role)
+                .claim("storeId", storeId)
+                .claim("warehouseId", warehouseId)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + accessExpiration))
                 .signWith(key, SignatureAlgorithm.HS256)
@@ -55,6 +57,16 @@ public class JwtTokenProvider {
     // 토큰에서 역할 추출
     public String getRole(String token) {
         return getClaims(token).get("role", String.class);
+    }
+
+    // 토큰에서 storeId 추출
+    public Long getStoreId(String token) {
+        return getClaims(token).get("storeId", Long.class);
+    }
+
+    // 토큰에서 warehouseId 추출
+    public Long getWarehouseId(String token) {
+        return getClaims(token).get("warehouseId", Long.class);
     }
 
     // 토큰 유효성 검증

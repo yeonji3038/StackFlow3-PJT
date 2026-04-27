@@ -35,9 +35,13 @@ public class AuthService {
             throw new BusinessException(ErrorCode.INVALID_PASSWORD);
         }
 
-        // 액세스 토큰 생성
+        // 액세스 토큰 생성 (storeId, warehouseId 포함)
         String accessToken = jwtTokenProvider.generateAccessToken(
-                user.getEmail(), user.getRole().name());
+                user.getEmail(),
+                user.getRole().name(),
+                user.getStore() != null ? user.getStore().getId() : null,
+                user.getWarehouse() != null ? user.getWarehouse().getId() : null
+        );
 
         // 리프레시 토큰 생성
         String refreshToken = jwtTokenProvider.generateRefreshToken(user.getEmail());
@@ -63,35 +67,35 @@ public class AuthService {
                 .name(user.getName())
                 .role(user.getRole())
                 .storeId(user.getStore() != null ? user.getStore().getId() : null)
-                .warehouseId(null)
+                .warehouseId(user.getWarehouse() != null ? user.getWarehouse().getId() : null)
                 .build();
     }
 
     // 토큰 재발급
     @Transactional
     public TokenResponseDto refresh(String refreshToken) {
-        // 리프레시 토큰 유효성 검증
         if (!jwtTokenProvider.validateToken(refreshToken)) {
             throw new BusinessException(ErrorCode.INVALID_TOKEN);
         }
 
-        // DB에서 리프레시 토큰 조회
         String email = jwtTokenProvider.getEmail(refreshToken);
         RefreshToken savedToken = refreshTokenRepository.findByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.REFRESH_TOKEN_NOT_FOUND));
 
-        // DB에 저장된 토큰과 일치하는지 확인
         if (!savedToken.getToken().equals(refreshToken)) {
             throw new BusinessException(ErrorCode.REFRESH_TOKEN_MISMATCH);
         }
 
-        // 사용자 조회
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        // 새 액세스 토큰 발급
+        // 새 액세스 토큰 발급 (storeId, warehouseId 포함)
         String newAccessToken = jwtTokenProvider.generateAccessToken(
-                user.getEmail(), user.getRole().name());
+                user.getEmail(),
+                user.getRole().name(),
+                user.getStore() != null ? user.getStore().getId() : null,
+                user.getWarehouse() != null ? user.getWarehouse().getId() : null
+        );
 
         return TokenResponseDto.builder()
                 .accessToken(newAccessToken)
@@ -101,7 +105,6 @@ public class AuthService {
     // 로그아웃
     @Transactional
     public void logout(String email) {
-        // 리프레시 토큰 삭제
         refreshTokenRepository.deleteByEmail(email);
     }
 }

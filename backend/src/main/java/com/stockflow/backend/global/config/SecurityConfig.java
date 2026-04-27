@@ -24,7 +24,6 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                // CORS 설정
                 .cors(cors -> cors.configurationSource(request -> {
                     CorsConfiguration config = new CorsConfiguration();
                     config.addAllowedOriginPattern("*");
@@ -33,42 +32,52 @@ public class SecurityConfig {
                     config.setAllowCredentials(true);
                     return config;
                 }))
-
-                // CSRF 비활성화
                 .csrf(csrf -> csrf.disable())
-
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                // 권한 설정
                 .authorizeHttpRequests(auth -> auth
                         // 인증 없이 접근 가능
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/docs", "/v3/api-docs/**", "/swagger-ui/**").permitAll()
                         .requestMatchers("/ws/**").permitAll()
 
-                        // 창고 재고 조회는 인증된 사람 모두 가능
-                        .requestMatchers(HttpMethod.GET, "/api/warehouses/*/stocks/**").authenticated()
+                        // 배분 조회 → 모든 인증된 사용자
+                        .requestMatchers(HttpMethod.GET, "/api/allocations/**").authenticated()
+                        // 배분 생성 → 본사만
+                        .requestMatchers(HttpMethod.POST, "/api/allocations/**").hasRole("HQ_STAFF")
+                        // 배분 승인/반려 → 본사만
+                        .requestMatchers(HttpMethod.PATCH, "/api/allocations/*/approve").hasRole("HQ_STAFF")
+                        .requestMatchers(HttpMethod.PATCH, "/api/allocations/*/cancel").hasRole("HQ_STAFF")
+                        // 배분 출고 → 창고 담당자 + 본사
+                        .requestMatchers(HttpMethod.PATCH, "/api/allocations/*/ship").hasAnyRole("HQ_STAFF", "WAREHOUSE_STAFF")
+                        // 배분 입고완료 → 매장 관리자 + 본사
+                        .requestMatchers(HttpMethod.PATCH, "/api/allocations/*/receive").hasAnyRole("HQ_STAFF", "STORE_MANAGER")
 
-                        // 본사 직원만 접근 가능
-                        .requestMatchers("/api/allocations/**").hasRole("HQ_STAFF")
-                        .requestMatchers("/api/warehouses/**").hasRole("HQ_STAFF")
+                        // 창고 재고 → 본사 + 창고담당자
+                        .requestMatchers(HttpMethod.GET, "/api/warehouses/*/stocks/**").hasAnyRole("HQ_STAFF", "WAREHOUSE_STAFF")
+                        .requestMatchers(HttpMethod.POST, "/api/warehouses/*/stocks/**").hasAnyRole("HQ_STAFF", "WAREHOUSE_STAFF")
+                        .requestMatchers(HttpMethod.PUT, "/api/warehouses/*/stocks/**").hasAnyRole("HQ_STAFF", "WAREHOUSE_STAFF")
+                        .requestMatchers(HttpMethod.DELETE, "/api/warehouses/*/stocks/**").hasAnyRole("HQ_STAFF", "WAREHOUSE_STAFF")
+                        // 창고 목록/상세 조회 → 본사 + 창고담당자
+                        .requestMatchers(HttpMethod.GET, "/api/warehouses").hasAnyRole("HQ_STAFF", "WAREHOUSE_STAFF")
+                        .requestMatchers(HttpMethod.GET, "/api/warehouses/**").hasAnyRole("HQ_STAFF", "WAREHOUSE_STAFF")
+                        // 창고 생성/수정/삭제 → 본사만
+                        .requestMatchers(HttpMethod.POST, "/api/warehouses").hasRole("HQ_STAFF")
+                        .requestMatchers(HttpMethod.PUT, "/api/warehouses/**").hasRole("HQ_STAFF")
+                        .requestMatchers(HttpMethod.DELETE, "/api/warehouses/**").hasRole("HQ_STAFF")
 
                         // 발주 승인/반려 → 본사만
                         .requestMatchers(HttpMethod.PATCH, "/api/orders/*/approve").hasRole("HQ_STAFF")
                         .requestMatchers(HttpMethod.PATCH, "/api/orders/*/reject").hasRole("HQ_STAFF")
-
                         // 발주 출고 → 본사 또는 창고 담당자
                         .requestMatchers(HttpMethod.PATCH, "/api/orders/*/ship").hasAnyRole("HQ_STAFF", "WAREHOUSE_STAFF")
-
-                        // 발주 입고완료 → 매장 관리자
+                        // 발주 입고완료 → 매장 관리자 + 본사
                         .requestMatchers(HttpMethod.PATCH, "/api/orders/*/receive").hasAnyRole("HQ_STAFF", "STORE_MANAGER")
 
                         // 나머지는 인증 필요
                         .anyRequest().authenticated()
                 )
-
-                // JWT 필터
                 .addFilterBefore(
                         new JwtAuthenticationFilter(jwtTokenProvider),
                         UsernamePasswordAuthenticationFilter.class
@@ -77,7 +86,6 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // 비밀번호 암호화 Bean 등록
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
