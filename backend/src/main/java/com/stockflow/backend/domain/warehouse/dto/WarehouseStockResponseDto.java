@@ -3,10 +3,18 @@ package com.stockflow.backend.domain.warehouse.dto;
 import com.stockflow.backend.domain.warehouse.entity.WarehouseStock;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+import java.io.Serializable;
 
 @Getter
 @Builder
-public class WarehouseStockResponseDto {
+@NoArgsConstructor
+@AllArgsConstructor
+public class WarehouseStockResponseDto implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private Long id;
     private Long warehouseId;

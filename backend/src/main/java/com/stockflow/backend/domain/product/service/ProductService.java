@@ -13,6 +13,8 @@ import com.stockflow.backend.domain.season.repository.SeasonRepository;
 import com.stockflow.backend.global.exception.BusinessException;
 import com.stockflow.backend.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +33,7 @@ public class ProductService {
 
     // 상품 생성
     @Transactional
+    @CacheEvict(value = "products", allEntries = true)
     public ProductResponseDto create(ProductRequestDto request) {
         Brand brand = brandRepository.findById(request.getBrandId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.BRAND_NOT_FOUND));
@@ -54,6 +57,7 @@ public class ProductService {
     }
 
     // 상품 전체 조회
+    @Cacheable(value = "products", key = "'all'")
     public List<ProductResponseDto> findAll() {
         return productRepository.findAll().stream()
                 .map(ProductResponseDto::from)
@@ -61,6 +65,7 @@ public class ProductService {
     }
 
     // 상품 단건 조회
+    @Cacheable(value = "products", key = "#id")
     public ProductResponseDto findById(Long id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
@@ -68,6 +73,7 @@ public class ProductService {
     }
 
     // 상품 수정
+    @CacheEvict(value = "products", allEntries = true)
     @Transactional
     public ProductResponseDto update(Long id, ProductRequestDto request) {
         Product product = productRepository.findById(id)
@@ -88,6 +94,7 @@ public class ProductService {
 
     // 상품 삭제
     @Transactional
+    @CacheEvict(value = "products", allEntries = true)
     public void delete(Long id) {
         if (!productRepository.existsById(id)) {
             throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
