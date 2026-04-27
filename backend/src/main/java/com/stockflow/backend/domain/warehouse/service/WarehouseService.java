@@ -2,13 +2,15 @@ package com.stockflow.backend.domain.warehouse.service;
 
 import com.stockflow.backend.domain.user.entity.User;
 import com.stockflow.backend.domain.user.repository.UserRepository;
+import com.stockflow.backend.domain.warehouse.dto.WarehouseRequestDto;
 import com.stockflow.backend.domain.warehouse.dto.WarehouseResponseDto;
 import com.stockflow.backend.domain.warehouse.entity.Warehouse;
 import com.stockflow.backend.domain.warehouse.repository.WarehouseRepository;
+import com.stockflow.backend.global.exception.BusinessException;
+import com.stockflow.backend.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.stockflow.backend.domain.warehouse.dto.WarehouseRequestDto;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -25,7 +27,7 @@ public class WarehouseService {
     @Transactional
     public WarehouseResponseDto create(WarehouseRequestDto request) {
         User manager = userRepository.findById(request.getManagerId())
-                .orElseThrow(() -> new RuntimeException("담당자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         Warehouse warehouse = Warehouse.builder()
                 .name(request.getName())
@@ -46,7 +48,7 @@ public class WarehouseService {
     // 창고 단건 조회
     public WarehouseResponseDto findById(Long id) {
         Warehouse warehouse = warehouseRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("창고를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.WAREHOUSE_NOT_FOUND));
         return WarehouseResponseDto.from(warehouse);
     }
 
@@ -54,10 +56,10 @@ public class WarehouseService {
     @Transactional
     public WarehouseResponseDto update(Long id, WarehouseRequestDto request) {
         Warehouse warehouse = warehouseRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("창고를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.WAREHOUSE_NOT_FOUND));
 
         User manager = userRepository.findById(request.getManagerId())
-                .orElseThrow(() -> new RuntimeException("담당자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         warehouse.update(request.getName(), request.getLocation(), manager);
         return WarehouseResponseDto.from(warehouse);
@@ -67,7 +69,7 @@ public class WarehouseService {
     @Transactional
     public void delete(Long id) {
         if (!warehouseRepository.existsById(id)) {
-            throw new RuntimeException("창고를 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.WAREHOUSE_NOT_FOUND);
         }
         warehouseRepository.deleteById(id);
     }

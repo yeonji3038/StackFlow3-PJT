@@ -1,6 +1,7 @@
 package com.stockflow.backend.domain.allocation.dto;
 
 import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -8,6 +9,7 @@ import java.util.List;
 
 @Getter
 @NoArgsConstructor
+@AllArgsConstructor
 public class AllocationRequestDto {
 
     @NotNull(message = "창고 ID는 필수입니다.")
@@ -16,14 +18,13 @@ public class AllocationRequestDto {
     @NotNull(message = "매장 ID는 필수입니다.")
     private Long storeId;
 
-    @NotNull(message = "요청자 ID는 필수입니다.")
-    private Long requestedById;
 
     @NotNull(message = "배분 상세는 필수입니다.")
     private List<AllocationItemDto> items;
 
     @Getter
     @NoArgsConstructor
+    @AllArgsConstructor
     public static class AllocationItemDto {
 
         @NotNull(message = "상품 옵션 ID는 필수입니다.")

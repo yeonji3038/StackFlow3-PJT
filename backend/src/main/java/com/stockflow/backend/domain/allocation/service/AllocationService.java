@@ -9,6 +9,9 @@ import com.stockflow.backend.domain.allocation.repository.AllocationItemReposito
 import com.stockflow.backend.domain.allocation.repository.AllocationRepository;
 import com.stockflow.backend.domain.product.entity.ProductOption;
 import com.stockflow.backend.domain.product.repository.ProductOptionRepository;
+import com.stockflow.backend.domain.stockhistory.entity.StockHistoryReason;
+import com.stockflow.backend.domain.stockhistory.entity.StockHistoryType;
+import com.stockflow.backend.domain.stockhistory.service.StockHistoryService;
 import com.stockflow.backend.domain.store.entity.Store;
 import com.stockflow.backend.domain.store.entity.StoreStock;
 import com.stockflow.backend.domain.store.repository.StoreRepository;
@@ -19,6 +22,9 @@ import com.stockflow.backend.domain.warehouse.entity.Warehouse;
 import com.stockflow.backend.domain.warehouse.entity.WarehouseStock;
 import com.stockflow.backend.domain.warehouse.repository.WarehouseRepository;
 import com.stockflow.backend.domain.warehouse.repository.WarehouseStockRepository;
+import com.stockflow.backend.global.exception.BusinessException;
+import com.stockflow.backend.global.exception.ErrorCode;
+import com.stockflow.backend.global.websocket.StockWebSocketService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,16 +45,19 @@ public class AllocationService {
     private final ProductOptionRepository productOptionRepository;
     private final WarehouseStockRepository warehouseStockRepository;
     private final StoreStockRepository storeStockRepository;
+    private final StockHistoryService stockHistoryService;
+    private final StockWebSocketService stockWebSocketService;
 
     // 배분 요청
     @Transactional
-    public AllocationResponseDto create(AllocationRequestDto request) {
+    public AllocationResponseDto create(AllocationRequestDto request, String email) {
         Warehouse warehouse = warehouseRepository.findById(request.getWarehouseId())
-                .orElseThrow(() -> new RuntimeException("창고를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.WAREHOUSE_NOT_FOUND));
         Store store = storeRepository.findById(request.getStoreId())
-                .orElseThrow(() -> new RuntimeException("매장을 찾을 수 없습니다."));
-        User requestedBy = userRepository.findById(request.getRequestedById())
-                .orElseThrow(() -> new RuntimeException("요청자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.STORE_NOT_FOUND));
+
+        User requestedBy = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         Allocation allocation = Allocation.builder()
                 .warehouse(warehouse)
@@ -59,10 +68,9 @@ public class AllocationService {
 
         Allocation saved = allocationRepository.save(allocation);
 
-        // 배분 상세 저장
         for (AllocationRequestDto.AllocationItemDto itemDto : request.getItems()) {
             ProductOption productOption = productOptionRepository.findById(itemDto.getProductOptionId())
-                    .orElseThrow(() -> new RuntimeException("상품 옵션을 찾을 수 없습니다."));
+                    .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_OPTION_NOT_FOUND));
 
             AllocationItem item = AllocationItem.builder()
                     .allocation(saved)
@@ -72,6 +80,10 @@ public class AllocationService {
 
             allocationItemRepository.save(item);
         }
+
+        // WebSocket: 배분 요청 알림 + 대시보드 갱신
+        stockWebSocketService.sendAllocationUpdate(saved.getId(), AllocationStatus.REQUESTED.name());
+        stockWebSocketService.sendDashboardUpdate();
 
         return AllocationResponseDto.from(saved, allocationItemRepository.findByAllocationId(saved.getId()));
     }
@@ -87,7 +99,7 @@ public class AllocationService {
     // 배분 단건 조회
     public AllocationResponseDto findById(Long id) {
         Allocation allocation = allocationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("배분을 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.ALLOCATION_NOT_FOUND));
         return AllocationResponseDto.from(allocation, allocationItemRepository.findByAllocationId(id));
     }
 
@@ -95,17 +107,21 @@ public class AllocationService {
     @Transactional
     public AllocationResponseDto approve(Long id, Long approvedById) {
         Allocation allocation = allocationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("배분을 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.ALLOCATION_NOT_FOUND));
 
-        // 상태 체크 - REQUESTED 상태만 승인 가능
         if (allocation.getStatus() != AllocationStatus.REQUESTED) {
-            throw new RuntimeException("요청 상태의 배분만 승인할 수 있습니다. 현재 상태: " + allocation.getStatus());
+            throw new BusinessException(ErrorCode.ALLOCATION_INVALID_STATUS);
         }
 
         User approvedBy = userRepository.findById(approvedById)
-                .orElseThrow(() -> new RuntimeException("승인자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         allocation.updateStatus(AllocationStatus.APPROVED, approvedBy);
+
+        // WebSocket: 승인 알림 + 대시보드 갱신
+        stockWebSocketService.sendAllocationUpdate(id, AllocationStatus.APPROVED.name());
+        stockWebSocketService.sendDashboardUpdate();
+
         return AllocationResponseDto.from(allocation, allocationItemRepository.findByAllocationId(id));
     }
 
@@ -113,35 +129,55 @@ public class AllocationService {
     @Transactional
     public AllocationResponseDto ship(Long id) {
         Allocation allocation = allocationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("배분을 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.ALLOCATION_NOT_FOUND));
 
-        // 상태 체크 - APPROVED 상태만 출고 가능
         if (allocation.getStatus() != AllocationStatus.APPROVED) {
-            throw new RuntimeException("승인된 배분만 출고할 수 있습니다. 현재 상태: " + allocation.getStatus());
+            throw new BusinessException(ErrorCode.ALLOCATION_INVALID_STATUS);
         }
 
         List<AllocationItem> items = allocationItemRepository.findByAllocationId(id);
 
-        // 창고 재고 차감
         for (AllocationItem item : items) {
             WarehouseStock warehouseStock = warehouseStockRepository
                     .findByWarehouseIdAndProductOptionId(
                             allocation.getWarehouse().getId(),
                             item.getProductOption().getId())
-                    .orElseThrow(() -> new RuntimeException("창고 재고를 찾을 수 없습니다."));
+                    .orElseThrow(() -> new BusinessException(ErrorCode.WAREHOUSE_STOCK_NOT_FOUND));
 
-            // 재고 부족 체크
             if (warehouseStock.getQuantity() < item.getQuantity()) {
-                throw new RuntimeException("창고 재고가 부족합니다. " +
-                        "상품 옵션 ID: " + item.getProductOption().getId() +
-                        ", 현재 재고: " + warehouseStock.getQuantity() +
-                        ", 요청 수량: " + item.getQuantity());
+                throw new BusinessException(ErrorCode.WAREHOUSE_STOCK_INSUFFICIENT);
             }
 
-            warehouseStock.updateQuantity(warehouseStock.getQuantity() - item.getQuantity());
+            int updatedQty = warehouseStock.getQuantity() - item.getQuantity();
+            warehouseStock.updateQuantity(updatedQty);
+
+            // WebSocket: 저재고 감지 시 알림
+            if (updatedQty <= 10) {
+                stockWebSocketService.sendLowStockAlert(
+                        allocation.getWarehouse().getId(),
+                        allocation.getWarehouse().getName(),
+                        item.getProductOption().getSkuCode(),
+                        updatedQty
+                );
+            }
+
+            stockHistoryService.record(
+                    null,
+                    allocation.getWarehouse(),
+                    item.getProductOption(),
+                    StockHistoryType.OUT,
+                    StockHistoryReason.ALLOCATION,
+                    item.getQuantity(),
+                    allocation.getApprovedBy()
+            );
         }
 
         allocation.updateStatus(AllocationStatus.SHIPPED, allocation.getApprovedBy());
+
+        // WebSocket: 출고 알림 + 대시보드 갱신
+        stockWebSocketService.sendAllocationUpdate(id, AllocationStatus.SHIPPED.name());
+        stockWebSocketService.sendDashboardUpdate();
+
         return AllocationResponseDto.from(allocation, items);
     }
 
@@ -149,16 +185,14 @@ public class AllocationService {
     @Transactional
     public AllocationResponseDto receive(Long id) {
         Allocation allocation = allocationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("배분을 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.ALLOCATION_NOT_FOUND));
 
-        // 상태 체크 - SHIPPED 상태만 입고완료 가능
         if (allocation.getStatus() != AllocationStatus.SHIPPED) {
-            throw new RuntimeException("출고된 배분만 입고완료 처리할 수 있습니다. 현재 상태: " + allocation.getStatus());
+            throw new BusinessException(ErrorCode.ALLOCATION_INVALID_STATUS);
         }
 
         List<AllocationItem> items = allocationItemRepository.findByAllocationId(id);
 
-        // 매장 재고 추가
         for (AllocationItem item : items) {
             StoreStock storeStock = storeStockRepository
                     .findByStoreIdAndProductOptionId(
@@ -172,9 +206,24 @@ public class AllocationService {
 
             storeStock.updateQuantity(storeStock.getQuantity() + item.getQuantity());
             storeStockRepository.save(storeStock);
+
+            stockHistoryService.record(
+                    allocation.getStore(),
+                    null,
+                    item.getProductOption(),
+                    StockHistoryType.IN,
+                    StockHistoryReason.ALLOCATION,
+                    item.getQuantity(),
+                    allocation.getApprovedBy()
+            );
         }
 
         allocation.updateStatus(AllocationStatus.RECEIVED, allocation.getApprovedBy());
+
+        // WebSocket: 입고완료 알림 + 대시보드 갱신
+        stockWebSocketService.sendAllocationUpdate(id, AllocationStatus.RECEIVED.name());
+        stockWebSocketService.sendDashboardUpdate();
+
         return AllocationResponseDto.from(allocation, items);
     }
 
@@ -182,17 +231,21 @@ public class AllocationService {
     @Transactional
     public AllocationResponseDto cancel(Long id) {
         Allocation allocation = allocationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("배분을 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.ALLOCATION_NOT_FOUND));
 
-        // 상태 체크 - RECEIVED 또는 이미 CANCELLED 상태는 취소 불가
         if (allocation.getStatus() == AllocationStatus.RECEIVED) {
-            throw new RuntimeException("입고완료된 배분은 취소할 수 없습니다.");
+            throw new BusinessException(ErrorCode.ALLOCATION_CANNOT_CANCEL);
         }
         if (allocation.getStatus() == AllocationStatus.CANCELLED) {
-            throw new RuntimeException("이미 취소된 배분입니다.");
+            throw new BusinessException(ErrorCode.ALLOCATION_ALREADY_CANCELLED);
         }
 
         allocation.updateStatus(AllocationStatus.CANCELLED, allocation.getApprovedBy());
+
+        // WebSocket: 취소 알림 + 대시보드 갱신
+        stockWebSocketService.sendAllocationUpdate(id, AllocationStatus.CANCELLED.name());
+        stockWebSocketService.sendDashboardUpdate();
+
         return AllocationResponseDto.from(allocation, allocationItemRepository.findByAllocationId(id));
     }
 }

@@ -6,6 +6,8 @@ import com.stockflow.backend.domain.user.dto.UserRequestDto;
 import com.stockflow.backend.domain.user.dto.UserResponseDto;
 import com.stockflow.backend.domain.user.entity.User;
 import com.stockflow.backend.domain.user.repository.UserRepository;
+import com.stockflow.backend.global.exception.BusinessException;
+import com.stockflow.backend.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -26,20 +28,19 @@ public class UserService {
     // 회원 가입
     @Transactional
     public UserResponseDto create(UserRequestDto request) {
-        // 이메일 중복 체크
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new RuntimeException("이미 사용 중인 이메일입니다.");
+            throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
         Store store = null;
         if (request.getStoreId() != null) {
             store = storeRepository.findById(request.getStoreId())
-                    .orElseThrow(() -> new RuntimeException("매장을 찾을 수 없습니다."));
+                    .orElseThrow(() -> new BusinessException(ErrorCode.STORE_NOT_FOUND));
         }
 
         User user = User.builder()
                 .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword())) // 비밀번호 암호화
+                .password(passwordEncoder.encode(request.getPassword()))
                 .name(request.getName())
                 .role(request.getRole())
                 .store(store)
@@ -58,7 +59,7 @@ public class UserService {
     // 단건 조회
     public UserResponseDto findById(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         return UserResponseDto.from(user);
     }
 
@@ -66,12 +67,12 @@ public class UserService {
     @Transactional
     public UserResponseDto update(Long id, UserRequestDto request) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         Store store = null;
         if (request.getStoreId() != null) {
             store = storeRepository.findById(request.getStoreId())
-                    .orElseThrow(() -> new RuntimeException("매장을 찾을 수 없습니다."));
+                    .orElseThrow(() -> new BusinessException(ErrorCode.STORE_NOT_FOUND));
         }
 
         user.update(request.getName(), request.getRole(), store);
@@ -82,7 +83,7 @@ public class UserService {
     @Transactional
     public void delete(Long id) {
         if (!userRepository.existsById(id)) {
-            throw new RuntimeException("사용자를 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
         }
         userRepository.deleteById(id);
     }
