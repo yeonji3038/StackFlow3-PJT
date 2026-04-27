@@ -15,12 +15,15 @@ import com.stockflow.backend.domain.user.entity.User;
 import com.stockflow.backend.domain.user.repository.UserRepository;
 import com.stockflow.backend.global.exception.BusinessException;
 import com.stockflow.backend.global.exception.ErrorCode;
+import com.stockflow.backend.global.kafka.dto.StockChangeEvent;
+import com.stockflow.backend.global.kafka.producer.StockEventProducer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -34,6 +37,7 @@ public class StoreStockService {
     private final ProductOptionRepository productOptionRepository;
     private final StockHistoryService stockHistoryService;
     private final UserRepository userRepository;
+    private final StockEventProducer stockEventProducer;
 
     // 매장 재고 등록
     @Transactional
@@ -99,6 +103,18 @@ public class StoreStockService {
                     reason,
                     Math.abs(diff),
                     updatedBy
+            );
+            // Kafka 이벤트 발행
+            stockEventProducer.sendStockChangeEvent(
+                    StockChangeEvent.builder()
+                            .productId(storeStock.getProductOption().getId())
+                            .productName(storeStock.getProductOption().getSkuCode())
+                            .previousStock(oldQty)
+                            .changedAmount(diff)
+                            .currentStock(newQty)
+                            .changeType(diff > 0 ? "INCREASE" : "DECREASE")
+                            .timestamp(LocalDateTime.now())
+                            .build()
             );
         }
 

@@ -10,6 +10,8 @@ import com.stockflow.backend.domain.warehouse.repository.WarehouseRepository;
 import com.stockflow.backend.domain.warehouse.repository.WarehouseStockRepository;
 import com.stockflow.backend.global.exception.BusinessException;
 import com.stockflow.backend.global.exception.ErrorCode;
+import com.stockflow.backend.global.kafka.dto.StockChangeEvent;
+import com.stockflow.backend.global.kafka.producer.StockEventProducer;
 import com.stockflow.backend.global.websocket.StockWebSocketService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
@@ -17,6 +19,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -29,6 +32,7 @@ public class WarehouseStockService {
     private final WarehouseRepository warehouseRepository;
     private final ProductOptionRepository productOptionRepository;
     private final StockWebSocketService stockWebSocketService;
+    private final StockEventProducer stockEventProducer;
 
     private static final int LOW_STOCK_THRESHOLD = 10;
 
@@ -84,6 +88,11 @@ public class WarehouseStockService {
         WarehouseStock warehouseStock = warehouseStockRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.WAREHOUSE_STOCK_NOT_FOUND));
 
+        // 변동량 계산을 위해 수정 전 수량 저장
+        int oldQty = warehouseStock.getQuantity();
+        int newQty = request.getQuantity();
+        int diff = newQty - oldQty;
+
         warehouseStock.updateQuantity(request.getQuantity());
 
         // WebSocket: 저재고 감지 시 알림 + 대시보드 갱신
@@ -95,6 +104,20 @@ public class WarehouseStockService {
                     request.getQuantity()
             );
             stockWebSocketService.sendDashboardUpdate();
+        }
+        // Kafka 이벤트 발행 (수량 변동이 있을 때만)
+        if (diff != 0) {
+            stockEventProducer.sendStockChangeEvent(
+                    StockChangeEvent.builder()
+                            .productId(warehouseStock.getProductOption().getId())
+                            .productName(warehouseStock.getProductOption().getSkuCode())
+                            .previousStock(oldQty)
+                            .changedAmount(diff)
+                            .currentStock(newQty)
+                            .changeType(diff > 0 ? "INCREASE" : "DECREASE")
+                            .timestamp(LocalDateTime.now())
+                            .build()
+            );
         }
 
         return WarehouseStockResponseDto.from(warehouseStock);

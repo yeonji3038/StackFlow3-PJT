@@ -9,10 +9,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class StoreStockRequestDto {
 
-    @NotNull(message = "매장 ID는 필수입니다.")
     private Long storeId;
 
-    @NotNull(message = "상품 옵션 ID는 필수입니다.")
     private Long productOptionId;
 
     @NotNull(message = "수량은 필수입니다.")
