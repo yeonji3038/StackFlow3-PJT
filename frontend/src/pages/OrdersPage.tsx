@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { getRole, getStoreId } from '../lib/auth'
 import { orderStatusDisplayText, orderStatusLabel } from '../lib/orderLabels'
@@ -9,8 +9,11 @@ import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { useTablePagination } from '../hooks/useTablePagination'
 import type { Order } from '../types/models'
 
+const ORDER_STATUS_QUERY = ['REQUESTED', 'APPROVED', 'SHIPPED', 'RECEIVED'] as const
+
 export default function OrdersPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const role = getRole()
   const myStoreId = getStoreId()
   const isStoreManager = role === 'STORE_MANAGER'
@@ -24,6 +27,13 @@ export default function OrdersPage() {
     if (role === 'STORE_MANAGER' && myStoreId != null) return myStoreId
     return 'ALL'
   })
+  useEffect(() => {
+    const s = searchParams.get('status')
+    if (s && (ORDER_STATUS_QUERY as readonly string[]).includes(s)) {
+      setStatus(s)
+    }
+  }, [searchParams])
+
   useEffect(() => {
     let cancelled = false
     ;(async () => {

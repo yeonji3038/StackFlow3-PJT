@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import { getRole, logout, roleLabel } from '../../lib/auth'
 
-const nav = [
+const baseNav = [
   { to: '/dashboard', label: '대시보드', icon: LayoutDashboard },
   { to: '/orders', label: '발주 관리', icon: ShoppingCart },
   { to: '/warehouse-stock', label: '창고 재고', icon: Warehouse },
@@ -29,6 +29,15 @@ export default function Sidebar() {
   const name = localStorage.getItem('name') ?? '사용자'
   const role = getRole()
   const isHq = role === 'HQ_STAFF'
+  const isStoreManager = role === 'STORE_MANAGER'
+
+  const nav = useMemo(
+    () =>
+      isStoreManager
+        ? baseNav.filter((item) => item.to !== '/warehouse-stock')
+        : [...baseNav],
+    [isStoreManager],
+  )
 
   const allocationsManageActive =
     pathname === '/allocations' || /^\/allocations\/\d+$/.test(pathname)
@@ -38,6 +47,15 @@ export default function Sidebar() {
   const [allocHover, setAllocHover] = useState(false)
   const [allocFocusInside, setAllocFocusInside] = useState(false)
   const showAllocSub = allocHover || allocationNewActive || allocFocusInside
+
+  const productsNewActive = pathname === '/admin/products/new'
+  const productsDetailActive = /^\/admin\/products\/\d+$/.test(pathname)
+  const productSectionActive =
+    pathname === '/admin/products' || productsNewActive || productsDetailActive
+  const [productHover, setProductHover] = useState(false)
+  const [productFocusInside, setProductFocusInside] = useState(false)
+  const showProductSub =
+    productHover || productsNewActive || productFocusInside || productsDetailActive
 
   const handleLogout = () => {
     logout()
@@ -126,7 +144,7 @@ export default function Sidebar() {
               </div>
             ) : null}
           </div>
-        ) : (
+        ) : isStoreManager ? null : (
           <NavLink
             to="/allocations"
             className={({ isActive }) =>
@@ -145,20 +163,54 @@ export default function Sidebar() {
 
         {isHq ? (
           <>
-            <NavLink
-              to="/admin/products"
-              className={({ isActive }) =>
-                [
-                  'mt-2 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200/80'
-                    : 'text-slate-600 hover:bg-white/80 hover:text-slate-900',
-                ].join(' ')
-              }
+            <div
+              className={[
+                'mt-2 rounded-lg transition-colors',
+                productSectionActive ? 'bg-white shadow-sm ring-1 ring-slate-200/80' : '',
+              ].join(' ')}
+              onMouseEnter={() => setProductHover(true)}
+              onMouseLeave={() => setProductHover(false)}
+              onFocusCapture={() => setProductFocusInside(true)}
+              onBlurCapture={(e) => {
+                const next = e.relatedTarget as Node | null
+                if (!e.currentTarget.contains(next)) setProductFocusInside(false)
+              }}
             >
-              <Tag className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
-              상품 등록
-            </NavLink>
+              <NavLink
+                to="/admin/products"
+                className={({ isActive }) =>
+                  [
+                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                    isActive || productsNewActive || productsDetailActive
+                      ? 'text-blue-700'
+                      : 'text-slate-600 hover:bg-white/80 hover:text-slate-900',
+                  ].join(' ')
+                }
+              >
+                <Tag className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+                상품 관리
+              </NavLink>
+              {showProductSub ? (
+                <div className="space-y-0.5 pb-1 pl-3">
+                  <div className="ml-3 border-l border-slate-200 pl-2">
+                    <NavLink
+                      to="/admin/products/new"
+                      className={({ isActive }) =>
+                        [
+                          'flex items-center gap-3 rounded-lg py-2 pl-2 pr-3 text-sm font-medium transition-colors',
+                          isActive
+                            ? 'bg-slate-50 text-blue-700 ring-1 ring-slate-200/80'
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+                        ].join(' ')
+                      }
+                    >
+                      <PackagePlus className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+                      상품 등록
+                    </NavLink>
+                  </div>
+                </div>
+              ) : null}
+            </div>
             <NavLink
               to="/admin/users"
               className={({ isActive }) =>

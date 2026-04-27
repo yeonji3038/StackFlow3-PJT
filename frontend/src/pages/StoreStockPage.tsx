@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
 import { getRole, getStoreId } from '../lib/auth'
 import SectionCard from '../components/ui/SectionCard'
@@ -8,6 +9,7 @@ import { useTablePagination } from '../hooks/useTablePagination'
 import type { StoreStock, StoreSummary } from '../types/models'
 
 export default function StoreStockPage() {
+  const navigate = useNavigate()
   const role = getRole()
   const myStoreId = getStoreId()
   const [stores, setStores] = useState<StoreSummary[]>([])
@@ -22,14 +24,26 @@ export default function StoreStockPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const loadStocks = useCallback(async () => {
+    if (selectedId === '') {
+      setStocks([])
+      return
+    }
+    try {
+      const { data } = await api.get<StoreStock[]>(`/api/stores/${selectedId}/stocks`)
+      setStocks(data ?? [])
+    } catch {
+      setStocks([])
+    }
+  }, [selectedId])
+
   useEffect(() => {
-    if (role === 'STORE_MANAGER' && myStoreId != null) return
     if (stores.length === 0) {
       setSelectedId((prev) => (prev !== '' ? '' : prev))
       return
     }
     setSelectedId((prev) => (stores.some((s) => s.id === prev) ? prev : stores[0].id))
-  }, [stores, role, myStoreId])
+  }, [stores])
 
   useEffect(() => {
     let cancelled = false
@@ -37,13 +51,6 @@ export default function StoreStockPage() {
       setLoading(true)
       setError(null)
       try {
-        if (role === 'STORE_MANAGER' && myStoreId != null) {
-          if (!cancelled) {
-            setStores([])
-            setSelectedId(myStoreId)
-          }
-          return
-        }
         const { data } = await api.get<StoreSummary[]>('/api/stores')
         if (cancelled) return
         const list = (data ?? []).filter((s) => {
@@ -51,12 +58,18 @@ export default function StoreStockPage() {
           return kind !== 'HQ'
         })
         setStores(list)
-        if (myStoreId != null && list.some((s) => s.id === myStoreId)) {
-          setSelectedId(myStoreId)
-        } else if (list[0]) {
-          setSelectedId(list[0].id)
+        if (role === 'STORE_MANAGER' && myStoreId != null) {
+          setSelectedId((prev) => {
+            if (prev !== '' && list.some((s) => s.id === prev)) return prev
+            if (list.some((s) => s.id === myStoreId)) return myStoreId
+            return list[0]?.id ?? ''
+          })
         } else {
-          setSelectedId('')
+          setSelectedId((prev) => {
+            if (prev !== '' && list.some((s) => s.id === prev)) return prev
+            if (myStoreId != null && list.some((s) => s.id === myStoreId)) return myStoreId
+            return list[0]?.id ?? ''
+          })
         }
       } catch {
         if (!cancelled) setError('매장 목록을 불러오지 못했습니다.')
@@ -70,23 +83,8 @@ export default function StoreStockPage() {
   }, [role, myStoreId])
 
   useEffect(() => {
-    if (selectedId === '') {
-      setStocks([])
-      return
-    }
-    let cancelled = false
-    ;(async () => {
-      try {
-        const { data } = await api.get<StoreStock[]>(`/api/stores/${selectedId}/stocks`)
-        if (!cancelled) setStocks(data ?? [])
-      } catch {
-        if (!cancelled) setStocks([])
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [selectedId])
+    void loadStocks()
+  }, [loadStocks])
 
   useEffect(() => {
     setItemQ('')
@@ -145,6 +143,11 @@ export default function StoreStockPage() {
 
   const storeStockPagination = useTablePagination(filteredStocks)
 
+  const goDetail = (s: StoreStock) => {
+    if (selectedId === '') return
+    navigate(`/store-stock/${selectedId}/${s.id}`)
+  }
+
   return (
     <div className="space-y-4">
       <div>
@@ -154,7 +157,7 @@ export default function StoreStockPage() {
       <SectionCard
         title="재고 조회"
         headerRight={
-          role === 'STORE_MANAGER' && myStoreId != null ? null : (
+          stores.length > 0 ? (
             <label className="flex items-center gap-2 text-sm">
               <span className="text-slate-500">매장</span>
               <select
@@ -165,18 +168,14 @@ export default function StoreStockPage() {
                 }}
                 className="min-w-[10rem] rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
-                {stores.length === 0 ? (
-                  <option value="">매장 없음</option>
-                ) : (
-                  stores.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))
-                )}
+                {stores.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
               </select>
             </label>
-          )
+          ) : null
         }
       >
         {loading ? (
@@ -298,7 +297,16 @@ export default function StoreStockPage() {
                       storeStockPagination.pageItems.map((s) => (
                         <tr
                           key={s.id}
-                          className="border-b border-slate-100 even:bg-slate-50/40 hover:bg-blue-50/50"
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => goDetail(s)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              goDetail(s)
+                            }
+                          }}
+                          className="cursor-pointer border-b border-slate-100 even:bg-slate-50/40 hover:bg-blue-50/50"
                         >
                           <td className="px-3 py-2 font-mono text-xs text-slate-600">{s.skuCode}</td>
                           <td className="px-3 py-2 text-slate-800">{s.productName}</td>
