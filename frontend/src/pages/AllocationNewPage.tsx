@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
 import { getRole } from '../lib/auth'
@@ -177,6 +177,12 @@ function clampIntQty(q: number, max: number): number {
 export default function AllocationNewPage() {
   const navigate = useNavigate()
   const role = getRole()
+
+  useLayoutEffect(() => {
+    if (role === 'STORE_MANAGER') {
+      navigate('/allocations', { replace: true })
+    }
+  }, [navigate, role])
 
   const [warehouses, setWarehouses] = useState<WarehouseSummary[]>([])
   const [stores, setStores] = useState<StoreSummary[]>([])

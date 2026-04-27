@@ -152,9 +152,37 @@ export default function AllocationDetailPage() {
     )
   }
 
-  const st = allocation.status
   const myStoreId = getStoreId()
   const myWarehouseId = getWarehouseId()
+
+  if (isStore) {
+    if (myStoreId == null) {
+      return (
+        <div className="space-y-4">
+          <Link to="/allocations" className="text-sm font-medium text-blue-600 hover:text-blue-700">
+            ← 배분 목록
+          </Link>
+          <p className="text-sm text-rose-600">
+            매장 정보가 없어 배분을 조회할 수 없습니다. 다시 로그인해 주세요.
+          </p>
+        </div>
+      )
+    }
+    if (allocation.storeId !== myStoreId) {
+      return (
+        <div className="space-y-4">
+          <Link to="/allocations" className="text-sm font-medium text-blue-600 hover:text-blue-700">
+            ← 배분 목록
+          </Link>
+          <p className="text-sm text-rose-600">
+            소속 매장으로 배정된 배분만 조회할 수 있습니다.
+          </p>
+        </div>
+      )
+    }
+  }
+
+  const st = allocation.status
 
   const showHqApproveReject = isHq && st === 'REQUESTED'
   const showWarehouseShip =
@@ -346,12 +374,6 @@ export default function AllocationDetailPage() {
             입고 완료
           </button>
         </SectionCard>
-      )}
-
-      {isStore && st === 'SHIPPED' && !showStoreReceive && (
-        <p className="text-sm text-slate-500">
-          이 배분은 다른 매장 건입니다. 입고 완료는 해당 매장 관리자 계정에서 처리합니다.
-        </p>
       )}
 
       <SectionCard title="품목">

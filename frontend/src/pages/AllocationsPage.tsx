@@ -8,7 +8,7 @@ import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { useTablePagination } from '../hooks/useTablePagination'
 import type { Allocation } from '../types/models'
 import { useStockStore } from '../stores/stockStore'
-import { getRole } from '../lib/auth'
+import { getRole, getStoreId } from '../lib/auth'
 
 function toInputDate(d: Date): string {
   const yyyy = String(d.getFullYear())
@@ -35,6 +35,9 @@ function matchesStatusFilter(filter: string, rowStatus: string): boolean {
 export default function AllocationsPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const role = getRole()
+  const myStoreId = getStoreId()
+  const isStoreManager = role === 'STORE_MANAGER'
   const allocationRefreshTrigger = useStockStore((s) => s.allocationRefreshTrigger)
   const hasFetchedOnce = useRef(false)
   const [rows, setRows] = useState<Allocation[]>([])
@@ -70,7 +73,15 @@ export default function AllocationsPage() {
       }
       try {
         const { data } = await api.get<Allocation[]>('/api/allocations')
-        if (!cancelled) setRows(data ?? [])
+        let list = Array.isArray(data) ? data : []
+        if (isStoreManager) {
+          if (myStoreId == null) {
+            list = []
+          } else {
+            list = list.filter((a) => a.storeId === myStoreId)
+          }
+        }
+        if (!cancelled) setRows(list)
       } catch {
         if (!cancelled) setError('배분 목록을 불러오지 못했습니다.')
       } finally {
@@ -83,7 +94,7 @@ export default function AllocationsPage() {
     return () => {
       cancelled = true
     }
-  }, [allocationRefreshTrigger])
+  }, [allocationRefreshTrigger, isStoreManager, myStoreId])
 
   const filterOptions = useMemo(() => {
     const warehouses = new Map<number, string>()
@@ -143,7 +154,7 @@ export default function AllocationsPage() {
   }, [rows, q, status, warehouse, store, from, to])
 
   const allocPagination = useTablePagination(filtered)
-  const isHq = getRole() === 'HQ_STAFF'
+  const isHq = role === 'HQ_STAFF'
 
   return (
     <div className="space-y-4">
@@ -166,7 +177,9 @@ export default function AllocationsPage() {
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="창고/매장/SKU/상품명/요청자 검색"
+              placeholder={
+                isStoreManager ? '창고/SKU/상품명/요청자 검색' : '창고/매장/SKU/상품명/요청자 검색'
+              }
               className="h-9 w-64 rounded-md border border-slate-200 bg-white px-3 text-sm shadow-sm placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
 
@@ -178,7 +191,9 @@ export default function AllocationsPage() {
                 className="h-9 rounded-md border border-slate-200 bg-white px-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
                 <option value="ALL">전체</option>
-                <option value="REQUESTED,APPROVED">처리 대기 (요청·승인)</option>
+                {!isStoreManager ? (
+                  <option value="REQUESTED,APPROVED">처리 대기 (요청·승인)</option>
+                ) : null}
                 {filterOptions.statuses.map((s) => (
                   <option key={s} value={s}>
                     {allocationStatusLabel(s)}
@@ -187,43 +202,47 @@ export default function AllocationsPage() {
               </select>
             </label>
 
-            <label className="flex items-center gap-2 text-sm">
-              <span className="text-slate-500">창고</span>
-              <select
-                value={warehouse === 'ALL' ? 'ALL' : String(warehouse)}
-                onChange={(e) => {
-                  const v = e.target.value
-                  setWarehouse(v === 'ALL' ? 'ALL' : Number(v))
-                }}
-                className="h-9 rounded-md border border-slate-200 bg-white px-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="ALL">전체</option>
-                {filterOptions.warehouses.map(([id, name]) => (
-                  <option key={id} value={id}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {!isStoreManager ? (
+              <>
+                <label className="flex items-center gap-2 text-sm">
+                  <span className="text-slate-500">창고</span>
+                  <select
+                    value={warehouse === 'ALL' ? 'ALL' : String(warehouse)}
+                    onChange={(e) => {
+                      const v = e.target.value
+                      setWarehouse(v === 'ALL' ? 'ALL' : Number(v))
+                    }}
+                    className="h-9 rounded-md border border-slate-200 bg-white px-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="ALL">전체</option>
+                    {filterOptions.warehouses.map(([id, name]) => (
+                      <option key={id} value={id}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-            <label className="flex items-center gap-2 text-sm">
-              <span className="text-slate-500">매장</span>
-              <select
-                value={store === 'ALL' ? 'ALL' : String(store)}
-                onChange={(e) => {
-                  const v = e.target.value
-                  setStore(v === 'ALL' ? 'ALL' : Number(v))
-                }}
-                className="h-9 rounded-md border border-slate-200 bg-white px-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="ALL">전체</option>
-                {filterOptions.stores.map(([id, name]) => (
-                  <option key={id} value={id}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <span className="text-slate-500">매장</span>
+                  <select
+                    value={store === 'ALL' ? 'ALL' : String(store)}
+                    onChange={(e) => {
+                      const v = e.target.value
+                      setStore(v === 'ALL' ? 'ALL' : Number(v))
+                    }}
+                    className="h-9 rounded-md border border-slate-200 bg-white px-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="ALL">전체</option>
+                    {filterOptions.stores.map(([id, name]) => (
+                      <option key={id} value={id}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </>
+            ) : null}
 
             <label className="flex items-center gap-2 text-sm">
               <span className="text-slate-500">기간</span>
@@ -265,6 +284,10 @@ export default function AllocationsPage() {
           <LoadingSpinner />
         ) : error ? (
           <p className="text-sm text-rose-600">{error}</p>
+        ) : isStoreManager && myStoreId == null ? (
+          <p className="text-sm text-amber-700">
+            매장 정보가 없어 배분 목록을 표시할 수 없습니다. 다시 로그인하거나 관리자에게 문의해 주세요.
+          </p>
         ) : (
           <div>
             <div className="overflow-x-auto rounded-md border border-slate-100">

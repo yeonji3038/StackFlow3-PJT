@@ -31,13 +31,18 @@ export default function Sidebar() {
   const isHq = role === 'HQ_STAFF'
   const isStoreManager = role === 'STORE_MANAGER'
 
-  const nav = useMemo(
-    () =>
-      isStoreManager
-        ? baseNav.filter((item) => item.to !== '/warehouse-stock')
-        : [...baseNav],
-    [isStoreManager],
-  )
+  /** HQ만 창고 재고. 매장 관리자는 대시보드·발주·매장 재고·입출고(+아래 배분 관리 링크) */
+  const nav = useMemo(() => {
+    if (isStoreManager) {
+      return baseNav.filter((item) =>
+        ['/dashboard', '/orders', '/store-stock', '/movements'].includes(item.to),
+      )
+    }
+    return baseNav.filter((item) => {
+      if (item.to === '/warehouse-stock') return isHq
+      return true
+    })
+  }, [isHq, isStoreManager])
 
   const allocationsManageActive =
     pathname === '/allocations' || /^\/allocations\/\d+$/.test(pathname)
@@ -144,13 +149,14 @@ export default function Sidebar() {
               </div>
             ) : null}
           </div>
-        ) : isStoreManager ? null : (
+        ) : isStoreManager ? (
           <NavLink
             to="/allocations"
+            end
             className={({ isActive }) =>
               [
                 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-                allocationsManageActive || isActive
+                isActive || allocationsManageActive
                   ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200/80'
                   : 'text-slate-600 hover:bg-white/80 hover:text-slate-900',
               ].join(' ')
@@ -159,7 +165,7 @@ export default function Sidebar() {
             <Package className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
             배분 관리
           </NavLink>
-        )}
+        ) : null}
 
         {isHq ? (
           <>
