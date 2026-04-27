@@ -1,5 +1,6 @@
 package com.stockflow.backend.domain.store.dto;
 
+import com.stockflow.backend.domain.stockhistory.entity.StockHistoryReason;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -16,4 +17,6 @@ public class StoreStockRequestDto {
 
     @NotNull(message = "수량은 필수입니다.")
     private int quantity;
+
+    private StockHistoryReason reason;
 }

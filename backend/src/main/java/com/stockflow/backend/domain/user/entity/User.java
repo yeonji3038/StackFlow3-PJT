@@ -1,6 +1,7 @@
 package com.stockflow.backend.domain.user.entity;
 
 import com.stockflow.backend.domain.store.entity.Store;
+import com.stockflow.backend.domain.warehouse.entity.Warehouse;
 import com.stockflow.backend.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -33,9 +34,15 @@ public class User extends BaseTimeEntity {
     @JoinColumn(name = "store_id")
     private Store store;
 
-    public void update(String name, UserRole role, Store store) {
+    // 창고 담당자 배정
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "warehouse_id")
+    private Warehouse warehouse;
+
+    public void update(String name, UserRole role, Store store, Warehouse warehouse) {
         this.name = name;
         this.role = role;
         this.store = store;
+        this.warehouse = warehouse;
     }
 }

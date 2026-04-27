@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -88,7 +89,7 @@ public interface StoreStockApiSpecification {
             @PathVariable Long id);
 
     @Operation(summary = "매장 재고 수정", description = """
-        💡 매장 재고 수량을 수정합니다.
+        💡 매장 재고 수량을 수정합니다. 수정 이력이 자동으로 기록됩니다.
         
         ---
         
@@ -96,6 +97,7 @@ public interface StoreStockApiSpecification {
         - **storeId** : 매장 ID
         - **id** : 수정할 매장 재고 ID
         - **quantity** : 변경할 재고 수량
+        - **reason** : 수정 사유 (선택) - SALE/RETURN/DAMAGE/SEASON_END 중 하나
         
         **[ 응답 필드 ]**
         - **id** : 매장 재고 ID
@@ -112,7 +114,8 @@ public interface StoreStockApiSpecification {
     ResponseEntity<StoreStockResponseDto> updateStoreStock(
             @PathVariable Long storeId,
             @PathVariable Long id,
-            @RequestBody @Valid StoreStockRequestDto request);
+            @RequestBody @Valid StoreStockRequestDto request,
+            @AuthenticationPrincipal String email);
 
     @Operation(summary = "매장 재고 삭제", description = """
         💡 매장 재고를 삭제합니다.

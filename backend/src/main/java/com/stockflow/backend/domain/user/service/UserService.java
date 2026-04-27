@@ -6,6 +6,8 @@ import com.stockflow.backend.domain.user.dto.UserRequestDto;
 import com.stockflow.backend.domain.user.dto.UserResponseDto;
 import com.stockflow.backend.domain.user.entity.User;
 import com.stockflow.backend.domain.user.repository.UserRepository;
+import com.stockflow.backend.domain.warehouse.entity.Warehouse;
+import com.stockflow.backend.domain.warehouse.repository.WarehouseRepository;
 import com.stockflow.backend.global.exception.BusinessException;
 import com.stockflow.backend.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final StoreRepository storeRepository;
+    private final WarehouseRepository warehouseRepository;
     private final BCryptPasswordEncoder passwordEncoder;
 
     // 회원 가입
@@ -38,12 +41,19 @@ public class UserService {
                     .orElseThrow(() -> new BusinessException(ErrorCode.STORE_NOT_FOUND));
         }
 
+        Warehouse warehouse = null;
+        if (request.getWarehouseId() != null) {
+            warehouse = warehouseRepository.findById(request.getWarehouseId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.WAREHOUSE_NOT_FOUND));
+        }
+
         User user = User.builder()
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .name(request.getName())
                 .role(request.getRole())
                 .store(store)
+                .warehouse(warehouse)
                 .build();
 
         return UserResponseDto.from(userRepository.save(user));
@@ -75,7 +85,13 @@ public class UserService {
                     .orElseThrow(() -> new BusinessException(ErrorCode.STORE_NOT_FOUND));
         }
 
-        user.update(request.getName(), request.getRole(), store);
+        Warehouse warehouse = null;
+        if (request.getWarehouseId() != null) {
+            warehouse = warehouseRepository.findById(request.getWarehouseId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.WAREHOUSE_NOT_FOUND));
+        }
+
+        user.update(request.getName(), request.getRole(), store, warehouse);
         return UserResponseDto.from(user);
     }
 

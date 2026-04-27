@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -48,8 +49,9 @@ public class StoreStockController implements StoreStockApiSpecification {
     public ResponseEntity<StoreStockResponseDto> updateStoreStock(
             @PathVariable Long storeId,
             @PathVariable Long id,
-            @RequestBody @Valid StoreStockRequestDto request) {
-        return ResponseEntity.ok(storeStockService.update(id, request));
+            @RequestBody @Valid StoreStockRequestDto request,
+            @AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(storeStockService.update(id, request, email));
     }
 
     // 매장 재고 삭제

@@ -26,5 +26,6 @@ public class UserRequestDto {
     @NotNull(message = "역할은 필수입니다.")
     private UserRole role;
 
-    private Long storeId; // 본사 직원은 null
+    private Long storeId;     // 매장 직원/관리자
+    private Long warehouseId; // 창고 담당자
 }
