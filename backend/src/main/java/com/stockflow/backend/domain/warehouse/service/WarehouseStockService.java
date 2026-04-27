@@ -12,6 +12,8 @@ import com.stockflow.backend.global.exception.BusinessException;
 import com.stockflow.backend.global.exception.ErrorCode;
 import com.stockflow.backend.global.websocket.StockWebSocketService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +34,7 @@ public class WarehouseStockService {
 
     // 창고 재고 등록
     @Transactional
+    @CacheEvict(value = "warehouseStocks", key = "#request.warehouseId")
     public WarehouseStockResponseDto create(WarehouseStockRequestDto request) {
         Warehouse warehouse = warehouseRepository.findById(request.getWarehouseId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.WAREHOUSE_NOT_FOUND));
@@ -60,6 +63,7 @@ public class WarehouseStockService {
     }
 
     // 특정 창고 재고 전체 조회
+    @Cacheable(value = "warehouseStocks", key = "#warehouseId")
     public List<WarehouseStockResponseDto> findAllByWarehouseId(Long warehouseId) {
         return warehouseStockRepository.findByWarehouseId(warehouseId).stream()
                 .map(WarehouseStockResponseDto::from)
@@ -75,6 +79,7 @@ public class WarehouseStockService {
 
     // 창고 재고 수량 수정
     @Transactional
+    @CacheEvict(value = "warehouseStocks", key = "#result.warehouseId")
     public WarehouseStockResponseDto update(Long id, WarehouseStockRequestDto request) {
         WarehouseStock warehouseStock = warehouseStockRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.WAREHOUSE_STOCK_NOT_FOUND));
@@ -97,6 +102,7 @@ public class WarehouseStockService {
 
     // 창고 재고 삭제
     @Transactional
+    @CacheEvict(value = "warehouseStocks", key = "#id")
     public void delete(Long id) {
         if (!warehouseStockRepository.existsById(id)) {
             throw new BusinessException(ErrorCode.WAREHOUSE_STOCK_NOT_FOUND);

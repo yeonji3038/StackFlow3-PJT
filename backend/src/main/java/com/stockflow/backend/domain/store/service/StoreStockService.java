@@ -16,6 +16,8 @@ import com.stockflow.backend.domain.user.repository.UserRepository;
 import com.stockflow.backend.global.exception.BusinessException;
 import com.stockflow.backend.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +37,7 @@ public class StoreStockService {
 
     // 매장 재고 등록
     @Transactional
+    @CacheEvict(value = "storeStocks", key = "#request.storeId")
     public StoreStockResponseDto create(StoreStockRequestDto request) {
         Store store = storeRepository.findById(request.getStoreId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORE_NOT_FOUND));
@@ -50,7 +53,8 @@ public class StoreStockService {
         return StoreStockResponseDto.from(storeStockRepository.save(storeStock));
     }
 
-    // 특정 매장 재고 전체 조회
+    // 매장 재고 전체 조회
+    @Cacheable(value = "storeStocks", key = "#storeId")
     public List<StoreStockResponseDto> findAllByStoreId(Long storeId) {
         return storeStockRepository.findByStoreId(storeId).stream()
                 .map(StoreStockResponseDto::from)
@@ -66,6 +70,7 @@ public class StoreStockService {
 
     // 매장 재고 수량 수정
     @Transactional
+    @CacheEvict(value = "storeStocks", key = "#result.storeId")
     public StoreStockResponseDto update(Long id, StoreStockRequestDto request, String email) {
         StoreStock storeStock = storeStockRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORE_STOCK_NOT_FOUND));
@@ -102,6 +107,7 @@ public class StoreStockService {
 
     // 매장 재고 삭제
     @Transactional
+    @CacheEvict(value = "storeStocks", key = "#id")
     public void delete(Long id) {
         if (!storeStockRepository.existsById(id)) {
             throw new BusinessException(ErrorCode.STORE_STOCK_NOT_FOUND);

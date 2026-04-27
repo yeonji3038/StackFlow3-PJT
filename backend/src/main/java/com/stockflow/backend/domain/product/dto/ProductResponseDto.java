@@ -2,14 +2,21 @@ package com.stockflow.backend.domain.product.dto;
 
 import com.stockflow.backend.domain.product.entity.Product;
 import com.stockflow.backend.domain.product.entity.ProductStatus;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 @Getter
 @Builder
-public class ProductResponseDto {
+@NoArgsConstructor
+@AllArgsConstructor
+public class ProductResponseDto implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private Long id;
     private String name;
