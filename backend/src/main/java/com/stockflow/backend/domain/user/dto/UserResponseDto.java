@@ -17,6 +17,8 @@ public class UserResponseDto {
     private UserRole role;
     private Long storeId;
     private String storeName;
+    private Long warehouseId;
+    private String warehouseName;
     private LocalDateTime createdAt;
 
     public static UserResponseDto from(User user) {
@@ -27,6 +29,8 @@ public class UserResponseDto {
                 .role(user.getRole())
                 .storeId(user.getStore() != null ? user.getStore().getId() : null)
                 .storeName(user.getStore() != null ? user.getStore().getName() : null)
+                .warehouseId(user.getWarehouse() != null ? user.getWarehouse().getId() : null)
+                .warehouseName(user.getWarehouse() != null ? user.getWarehouse().getName() : null)
                 .createdAt(user.getCreatedAt())
                 .build();
     }
