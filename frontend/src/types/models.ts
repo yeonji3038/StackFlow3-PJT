@@ -56,6 +56,19 @@ export interface StoreStock {
   quantity: number
 }
 
+/** `GET /api/stock-history/store/{storeId}` 응답 */
+export interface StoreStockHistory {
+  id: number
+  skuCode: string
+  productName: string
+  color?: string
+  size?: string
+  type: string
+  typeDescription?: string
+  quantity: number
+  createdAt: string
+}
+
 export interface WarehouseSummary {
   id: number
   name: string

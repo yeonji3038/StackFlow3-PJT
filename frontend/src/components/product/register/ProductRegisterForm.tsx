@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { isAxiosError } from 'axios'
-import { api } from '../../lib/api'
+import { api } from '../../../lib/api'
+import { PRODUCT_STATUS_OPTIONS, type ProductStatusValue } from '../../../lib/productStatus'
 
 type BrandRow = { id: number; name: string }
 type CategoryNode = { id: number; name: string; children?: CategoryNode[] }
@@ -10,13 +11,11 @@ type SeasonRow = {
   year?: number
 }
 
-export type ProductStatusValue = 'ON_SALE' | 'DISCONTINUED' | 'OUTLET'
+export type { ProductStatusValue }
 
-const STATUS_OPTIONS: { value: ProductStatusValue; label: string }[] = [
-  { value: 'ON_SALE', label: '판매중' },
-  { value: 'DISCONTINUED', label: '단종' },
-  { value: 'OUTLET', label: '아울렛' },
-]
+type Props = {
+  onRegistered?: () => void
+}
 
 function flattenCategories(nodes: CategoryNode[], parentLabel = ''): { id: number; label: string }[] {
   const rows: { id: number; label: string }[] = []
@@ -34,7 +33,7 @@ function inputClass() {
   return 'h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm shadow-sm placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
 }
 
-export default function ProductRegisterForm() {
+export default function ProductRegisterForm({ onRegistered }: Props) {
   const [brands, setBrands] = useState<BrandRow[]>([])
   const [categories, setCategories] = useState<CategoryNode[]>([])
   const [seasons, setSeasons] = useState<SeasonRow[]>([])
@@ -143,6 +142,7 @@ export default function ProductRegisterForm() {
       const { data } = await api.post<{ id: number; name: string }>('/api/products', body)
       setSuccess(`상품이 등록되었습니다. (ID ${data.id}${data.name ? ` · ${data.name}` : ''})`)
       resetForm()
+      onRegistered?.()
     } catch (err) {
       if (isAxiosError(err)) {
         const d = err.response?.data as { message?: string } | string | undefined
@@ -264,7 +264,7 @@ export default function ProductRegisterForm() {
             onChange={(e) => setStatus(e.target.value as ProductStatusValue)}
             className={inputClass()}
           >
-            {STATUS_OPTIONS.map((o) => (
+            {PRODUCT_STATUS_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>

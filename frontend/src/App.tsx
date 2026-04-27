@@ -13,9 +13,12 @@ import OrderDetailPage from './pages/OrderDetailPage'
 import OrderNewPage from './pages/OrderNewPage'
 import WarehouseStockPage from './pages/WarehouseStockPage'
 import StoreStockPage from './pages/StoreStockPage'
+import StoreStockDetailPage from './pages/StoreStockDetailPage'
 import MovementsPage from './pages/MovementsPage'
 import UsersAdminPage from './pages/admin/UsersAdminPage'
-import ProductRegisterPage from './pages/admin/ProductRegisterPage'
+import ProductListPage from './pages/admin/products/ProductListPage'
+import ProductRegisterPage from './pages/admin/products/ProductRegisterPage'
+import ProductDetailPage from './pages/admin/products/ProductDetailPage'
 
 function App() {
   return (
@@ -35,10 +38,13 @@ function App() {
           <Route path="/orders/new" element={<OrderNewPage />} />
           <Route path="/orders/:id" element={<OrderDetailPage />} />
           <Route path="/warehouse-stock" element={<WarehouseStockPage />} />
+          <Route path="/store-stock/:storeId/:stockId" element={<StoreStockDetailPage />} />
           <Route path="/store-stock" element={<StoreStockPage />} />
           <Route path="/movements" element={<MovementsPage />} />
           <Route path="/admin/users" element={<UsersAdminPage />} />
-          <Route path="/admin/products" element={<ProductRegisterPage />} />
+          <Route path="/admin/products" element={<ProductListPage />} />
+          <Route path="/admin/products/new" element={<ProductRegisterPage />} />
+          <Route path="/admin/products/:id" element={<ProductDetailPage />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />
