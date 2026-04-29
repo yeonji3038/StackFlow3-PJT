@@ -2,6 +2,8 @@ name: CI - Build and Push to ECR
 
 on:
   push:
+    branches: [ develop ]
+  pull_request:
     branches: [ main ]
 
 env:
