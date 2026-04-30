@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stockflow-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: stockflow-backend
+  template:
+    metadata:
+      labels:
+        app: stockflow-backend
+    spec:
+      containers:
+      - name: stockflow-backend
+        image: REPLACE_WITH_ECR_IMAGE
+        ports:
+        - containerPort: 8080
+        env:
+        - name: DB_URL
+          valueFrom:
+            secretKeyRef:
+              name: stockflow-secret
+              key: DB_URL
+        - name: DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: stockflow-secret
+              key: DB_USERNAME
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: stockflow-secret
+              key: DB_PASSWORD
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: stockflow-secret
+              key: JWT_SECRET
+        - name: JWT_EXPIRATION
+          valueFrom:
+            secretKeyRef:
+              name: stockflow-secret
+              key: JWT_EXPIRATION
+        - name: JWT_REFRESH_EXPIRATION
+          valueFrom:
+            secretKeyRef:
+              name: stockflow-secret
+              key: JWT_REFRESH_EXPIRATION
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          valueFrom:
+            configMapKeyRef:
+              name: stockflow-config
+              key: KAFKA_BOOTSTRAP_SERVERS
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stockflow-backend-service
+spec:
+  selector:
+    app: stockflow-backend
+  type: NodePort
+  ports:
+  - port: 8080
+    targetPort: 8080
+    nodePort: 30080
