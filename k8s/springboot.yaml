@@ -12,6 +12,8 @@ spec:
       labels:
         app: stockflow-backend
     spec:
+      imagePullSecrets:
+      - name: ecr-secret
       containers:
       - name: stockflow-backend
         image: 836533914314.dkr.ecr.ap-northeast-2.amazonaws.com/stockflow:702a8355bfa99d68c3d6719a80929778e716ca1e
