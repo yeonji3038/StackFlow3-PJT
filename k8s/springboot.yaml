@@ -55,6 +55,11 @@ spec:
             configMapKeyRef:
               name: stockflow-config
               key: KAFKA_BOOTSTRAP_SERVERS
+        - name: REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: stockflow-config
+              key: REDIS_HOST
 ---
 apiVersion: v1
 kind: Service
